@@ -26,19 +26,7 @@ uint32_t WaitForContact = WAIT_AFTER_SLEEP;
     #include <Adafruit_NeoPixel.h>
     Adafruit_NeoPixel pixels (1, RGBLED_PIN, NEO_GRB + NEO_KHZ800);
 #endif
-#ifdef MRD_USED
-    #ifdef ESP8266 // ESP8266_MRD_USE_RTC false
-        #define ESP8266_MRD_USE_RTC   false  
-    #endif
-    #define ESP_MRD_USE_LITTLEFS           true
-    #define MULTIRESETDETECTOR_DEBUG       true  //false
-    #define MRD_TIMES               3
-    #define MRD_TIMEOUT             10
-    #define MRD_ADDRESS             0
 
-    #include <ESP_MultiResetDetector.h>
-    MultiResetDetector* mrd;
-#endif
 #if defined(PORT0) || defined(ADC0)
     #include <Wire.h>
     //#include <Spi.h>
@@ -69,6 +57,7 @@ uint32_t WaitForContact = WAIT_AFTER_SLEEP;
 
 #pragma region Globals
 MyLinkedList<ReceivedMessagesStruct*> ReceivedMessagesList = MyLinkedList<ReceivedMessagesStruct*>();
+MyLinkedList<RepeatMessagesStruct*>   RepeatMessagesList   = MyLinkedList<RepeatMessagesStruct*>();
 MyLinkedList<PeriphClass*>            SwitchList           = MyLinkedList<PeriphClass*>();
 MyLinkedList<PeriphClass*>            SensorList           = MyLinkedList<PeriphClass*>();
 
@@ -158,8 +147,7 @@ void setup()
     }
     
     UpdateDataFromSwitches();
-    //UpdateSwitchesFromData();
-
+    
     WiFi.mode(WIFI_STA);
     WiFi.STA.begin();
     uint8_t MacTemp[6];
@@ -215,6 +203,31 @@ void GarbageMessages()
                 ReceivedMessagesList.remove(i);
                 delete RMItem;
             }
+        }
+    }
+}
+//********************************************* */
+void GarbageReposts()
+{
+    while(RepeatMessagesList.size() > 1)
+    { 
+        for (int il=RepeatMessagesList.size()-1; il>1; il--)
+        {
+            RepeatMessagesStruct *RMItemLast = RepeatMessagesList.get(il);
+        
+                        
+                
+                {
+                    DEBUG3 ("Doppelte Message in RepeatList entfernt\n\r");
+                    RepeatMessagesList.remove(i);
+                    delete (RMItem2);
+                }
+            {
+                esp_err_t result = esp_now_send(broadcastAddressAll, (uint8_t*) RMItem->Msg, 250);
+                DEBUG3("Repost: %d - %s\n\r", result, RMItem->Msg); 
+            }
+            RepeatMessagesList.remove(i);
+            delete (RMItem);
         }
     }
 }
@@ -342,7 +355,7 @@ void SendPairingRequest()
 
     esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), 240);  
     
-    //DEBUG2 ("\nSending: %s\n\r", jsondata.c_str());                               
+    DEBUG3 ("\nSending: %s\n\r", jsondata.c_str());                               
 }
 void SendConfirm(const uint8_t * MAC, uint32_t TSConfirm) 
 {
@@ -383,6 +396,33 @@ void SendConfirm(const uint8_t * MAC, uint32_t TSConfirm)
     
     AddStatus("Send Confirm...");                                     
 }
+void SendReposts()
+{
+    MyLinkedList<RepeatMessagesStruct*>   RepeatMessagesListNew   = MyLinkedList<RepeatMessagesStruct*>();
+    int biggestTTL = 0;
+    uint32_t ActTS;
+
+    if (RepeatMessagesList.size() > 0)
+    { 
+        for (int i=0; i<RepeatMessagesList.size()-1; i++)
+        {
+            RepeatMessagesStruct *RMItem = RepeatMessagesList.get(i);
+            biggestTTLItem = i;
+
+            for (int i2=0; i2<RepeatMessagesList.size()-1; i2++)
+            {
+                RepeatMessagesStruct *RMItem2 = RepeatMessagesList.get(i2);
+                if (RMItem2->TS == RMItem->TS)
+                {   if (strcmp(RMItem2->Msg, RMItem->Msg) == 0)
+                    {
+                        if (RMItem2->TTL > RepeatMessagesList.get(biggestTTLItem)->TTL) biggestTTLItem = i2;
+                    }
+                }
+            }
+            
+        }
+    }
+}
 #pragma endregion Send-Things
 #pragma region System-Things
 void ChangeBrightness(int B)
@@ -422,7 +462,12 @@ void AddStatus(String Msg)
   }
   Status[0].Msg = Msg;
   Status[0].TSMsg = millis();
+  
   */
+ Serial.println("----------------------------");
+ Serial.println(Msg);
+ Serial.println("----------------------------");
+ 
 }
 void ToggleSwitch(int SNr, int State=2)
 {
@@ -928,20 +973,24 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
         String MacFromS;
         String MacToS;
         uint32_t _TS;
+        int _TTL;
 
+        //Packet muss From, To und TS haben, sonst ignorieren
         if ( JX(SEND_CMD_JSON_FROM) and JX(SEND_CMD_JSON_TO) and JX(SEND_CMD_JSON_TS))
         {
             MacFromS = (String) doc[SEND_CMD_JSON_FROM];
             MacCharToByte(_From, (char *) MacFromS.c_str());
             MacToS = (String) doc[SEND_CMD_JSON_TO];
             MacCharToByte(_To, (char *) MacToS.c_str());
-            _TS = (uint32_t)doc[SEND_CMD_JSON_TS];
+            _TS  = (uint32_t)doc[SEND_CMD_JSON_TS];
+            _TTL = (int) doc[SEND_CMD_JSON_TTL];
         }
         else
         {
             return;
         }
 
+        //Packet verarbeiten
         if ( (memcmp(_To, Module.GetBroadcastAddress(), 6) == 0) or (memcmp(_To, broadcastAddressAll, 6) == 0) )
         {
             DEBUG3 ("%lu: Recieved from: %s\n\r", _TS, (char *)MacFromS.c_str()); 
@@ -962,6 +1011,7 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                 }
             }     
             
+            //Message in Liste aufnehmen, damit nicht nochmal verarbeitet wird
             ReceivedMessagesStruct *RMItem = new ReceivedMessagesStruct;
             memcpy(RMItem->From, _From, 6);
             RMItem->TS = _TS;
@@ -1192,6 +1242,21 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                 }
             }
         } 
+
+        //weitersenden (TTL-1)
+        _TTL--;
+        if (_TTL >0)
+        {
+            doc[SEND_CMD_JSON_TTL] = _TTL;
+
+            serializeJson(doc, jsondata);  
+
+            RepeatMessagesStruct *ToRepeat;
+            ToRepeat = new RepeatMessagesStruct;
+            strcpy(ToRepeat->Msg, jsondata.c_str());
+            ToRepeat->TS = _TS;
+            RepeatMessagesList.add(ToRepeat);
+        }
     } // end (!error)
     else // error
     { 
@@ -1241,6 +1306,10 @@ void loop()
         }
         else SendStatus();
         GarbageMessages();
+        #ifdef IS_REPEATER
+            GarbageReposts();
+            RepostMessages();
+        #endif
     }
     
     if  ((actTime - TSCheckRel ) > RELAY_CHECK )                                 // Check Relay-State
@@ -1280,10 +1349,12 @@ void loop()
             TSPair = actTime;
             Module.SetPairMode(true);
             SetMessageLED(1);
-    
-            AddStatus("Pairing beginnt...");
             
-            if (!TSButton) TSButton = actTime;
+            if (!TSButton) 
+            {
+                TSButton = actTime;
+                AddStatus("Pairing beginnt...");
+            }
             else 
             {
                 if ((actTime - TSButton) > 5000) {
@@ -1434,23 +1505,6 @@ void InitSCL()
         else
         {
             DEBUG2 ("ADC3 initialised.\n\r");
-        }
-    #endif
-}
-void InitMRD()
-{
-    #ifdef MRD_USED                             // MultiReset-Check
-        mrd = new MultiResetDetector(MRD_TIMEOUT, MRD_ADDRESS);
-
-        if (mrd->detectMultiReset()) {
-          DEBUG1 ("Multi Reset Detected\n\r");
-          digitalWrite(LED_BUILTIN, LED_ON);
-          //ClearPeers(); ClearInit(); InitModule(); SaveModule(); delay(10000); ESP.restart();
-          Module.SetPairMode(true); TSPair = millis();
-        }
-        else {
-          DEBUG1 ("No Multi Reset Detected\n\r");
-          digitalWrite(LED_BUILTIN, LED_OFF);
         }
     #endif
 }

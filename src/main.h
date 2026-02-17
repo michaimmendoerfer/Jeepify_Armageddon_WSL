@@ -13,15 +13,18 @@ struct struct_Status {
   String    Msg;
   uint32_t  TSMsg;
 };
-
 struct ReceivedMessagesStruct {
     uint8_t  From[6];
     uint32_t TS;
     uint32_t SaveTime;
 };
+struct RepeatMessagesStruct {
+    char Msg[260];
+    uint32_t TS;
+    int TTL;
+};
 
 void   InitSCL();
-void   InitMRD();
 
 float  ReadAmp (int SNr);
 float  ReadVolt(int SNr);

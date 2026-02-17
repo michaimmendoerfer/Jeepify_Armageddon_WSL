@@ -5,10 +5,10 @@
 
 //#define MODULE_JL_BATTERY_SENSOR      // (tut)
 //#define MODULE_SENSORDRAGON_V1_0
-//#define MODULE_SENSIBLEDRAGON_V1_2
+#define MODULE_SENSIBLEDRAGON_V1_2
 //#define MODULE_POWERDRAGON4_V1_0
 //#define MODULE_1WAY_C6
-#define MODULE_4_TAILED_FIRINGDRAGON_V1_0
+//#define MODULE_4_TAILED_FIRINGDRAGON_V1_0
 //#define MODULE_4WAY_ESP32_MONSTER
 //#define MODULE_4WAY_ESP32_BIGGY
 //#define MODULE_TERMINATOR_PRO         // ESP32-3248S035C, 480x320 Display
@@ -104,11 +104,12 @@ void InitModule();
     #define ADC0                0x48
     #define ADC1                0x49
     #define VOLTAGE_PIN         1
-    #define VOLTAGE_DEVIDER_V   4.82978
+    #define VOLTAGE_DEVIDER_V   4.82978 //18k-4,7k
     #define VOLTAGE_DEVIDER_A   4.46938
     #define MODULE_NAME         "4TF_2.0"
     #define BOARD_VOLTAGE       3.3
     #define BOARD_ANALOG_MAX    4095
+    #define IS_REPEATER         1
 #endif
 
 #ifdef MODULE_SENSIBLEDRAGON_V1_2 // locked
@@ -125,7 +126,7 @@ void InitModule();
     #define ADC0                0x48
     #define PAIRING_BUTTON      0
     #define LED_PIN             10
-    #define RGBLED_PIN          8
+    //#define RGBLED_PIN          8
     #define LED_OFF             0
     #define LED_ON              1
     #define SDA_PIN             20
@@ -136,6 +137,7 @@ void InitModule();
     #define MODULE_NAME         "JLSDT1"
     #define BOARD_VOLTAGE       3.3
     #define BOARD_ANALOG_MAX    4095
+    #define IS_REPEATER         1
 #endif
 
 #ifdef MODULE_SENSORDRAGON_V1_0

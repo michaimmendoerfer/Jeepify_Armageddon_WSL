@@ -1,6 +1,6 @@
 #ifndef JEEPIFY_H
 #define JEEPIFY_H
-// Version 3.02
+// Version 3.03
 
 #include <Arduino.h>
 
@@ -102,6 +102,8 @@
 #define OFFLINE_INTERVAL  20000
 #define PAIR_INTERVAL     30000
 #define SLEEP_INTERVAL    5000
+#define REPOST_TIMEOUT    5000
+
 
 // Round-Monitor Touch
 const int I2C_SDA  = 4;
