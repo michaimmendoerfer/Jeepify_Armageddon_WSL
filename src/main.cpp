@@ -1,4 +1,5 @@
 //#define KILL_NVS 1
+//Version 3.50
 
 #include <Arduino.h>
 #include <Module.h>
@@ -206,31 +207,6 @@ void GarbageMessages()
         }
     }
 }
-//********************************************* */
-void GarbageReposts()
-{
-    while(RepeatMessagesList.size() > 1)
-    { 
-        for (int il=RepeatMessagesList.size()-1; il>1; il--)
-        {
-            RepeatMessagesStruct *RMItemLast = RepeatMessagesList.get(il);
-        
-                        
-                
-                {
-                    DEBUG3 ("Doppelte Message in RepeatList entfernt\n\r");
-                    RepeatMessagesList.remove(i);
-                    delete (RMItem2);
-                }
-            {
-                esp_err_t result = esp_now_send(broadcastAddressAll, (uint8_t*) RMItem->Msg, 250);
-                DEBUG3("Repost: %d - %s\n\r", result, RMItem->Msg); 
-            }
-            RepeatMessagesList.remove(i);
-            delete (RMItem);
-        }
-    }
-}
 void SendStatus (int Pos) 
 {
     JsonDocument doc; 
@@ -396,33 +372,26 @@ void SendConfirm(const uint8_t * MAC, uint32_t TSConfirm)
     
     AddStatus("Send Confirm...");                                     
 }
-void SendReposts()
+void SendReposts(int timer_ms)
 {
-    MyLinkedList<RepeatMessagesStruct*>   RepeatMessagesListNew   = MyLinkedList<RepeatMessagesStruct*>();
-    int biggestTTL = 0;
-    uint32_t ActTS;
+    uint32_t actTime = millis();
 
-    if (RepeatMessagesList.size() > 0)
-    { 
-        for (int i=0; i<RepeatMessagesList.size()-1; i++)
-        {
-            RepeatMessagesStruct *RMItem = RepeatMessagesList.get(i);
-            biggestTTLItem = i;
-
-            for (int i2=0; i2<RepeatMessagesList.size()-1; i2++)
-            {
-                RepeatMessagesStruct *RMItem2 = RepeatMessagesList.get(i2);
-                if (RMItem2->TS == RMItem->TS)
-                {   if (strcmp(RMItem2->Msg, RMItem->Msg) == 0)
-                    {
-                        if (RMItem2->TTL > RepeatMessagesList.get(biggestTTLItem)->TTL) biggestTTLItem = i2;
-                    }
+    while (actTime + timer_ms < millis())
+    {
+        if (RepeatMessagesList.size() > 0)
+        { 
+                RepeatMessagesStruct *RMItem = RepeatMessagesList.get(0);
+                if (RMItem->TS + REPOST_TIMEOUT < actTime)
+                {
+                    esp_err_t result = esp_now_send(broadcastAddressAll, (uint8_t*) RMItem->Msg, 250);
+                            DEBUG3("ESPNOW: %d - %s\n\r", result, RMItem->Msg); 
                 }
+                RepeatMessagesList.shift();
+                //delete (RMItem);
             }
-            
         }
-    }
 }
+
 #pragma endregion Send-Things
 #pragma region System-Things
 void ChangeBrightness(int B)
@@ -786,9 +755,11 @@ void LEDBlink(int Color, int n, uint8_t ms)
 #pragma region Data-Things
 void VoltageCalibration(int SNr, float V) 
 {
+    //realVoltage durch anpassung von vin... realV = messwert/vin*VoltageDevider
+    //                                       vin   = messwert/realV*VoltageDevider
     char Buf[100] = {}; 
   
-    DEBUG1 ("SNr %d: Volt-Messung kalibrieren... Port: %d, Type:%d", SNr, Module.GetPeriphIOPort(SNr, 2), Module.GetPeriphType(SNr));
+    DEBUG1 ("SNr %d: Volt-Messung kalibrieren... Port: %d, Type:%d\n\r", SNr, Module.GetPeriphIOPort(SNr, 2), Module.GetPeriphType(SNr));
     
     if (Module.GetPeriphType(SNr) == SENS_TYPE_VOLT) {
         float TempRead = 0;
@@ -801,20 +772,15 @@ void VoltageCalibration(int SNr, float V)
         }
         TempRead = (float) TempRead / 20;
         
-        DEBUG3 ("TempRead nach filter = %.2f\n\r", TempRead);
+        DEBUG3 ("TempRead nach filter = %.2f (%.2fV)\n\r", TempRead, TempRead / Module.GetPeriphVin(SNr)*VOLTAGE_DEVIDER_V);
         DEBUG3 ("Eich-soll Volt: %.2f\n\r", V);
        
         NewVin = TempRead / V * VOLTAGE_DEVIDER_V;
         Module.SetPeriphVin(SNr, NewVin);        
-        DEBUG3 ("NewVin = %.2f\n\r", Module.GetPeriphVin(SNr));
+        DEBUG3 ("ausgelesen: NewVin = %.2f\n\r", Module.GetPeriphVin(SNr));
         
-        DEBUG1 ("S[%d].Vin = %.2f - volt after calibration: %.2fV", SNr, Module.GetPeriphVin(SNr), TempRead/Module.GetPeriphVin(SNr));
-        if (DEBUG_LEVEL > 1)  
-        {
-            snprintf(Buf, sizeof(Buf), "[%d] %s (Type: %d): Spannung ist jetzt: %.2fV", SNr, Module.GetPeriphName(SNr), Module.GetPeriphType(SNr), (float)TempRead/Module.GetPeriphVin(SNr));
-            AddStatus(Buf);
-        }
-        //SendCommand(SEND_CMD_CONFIRM_VOLT);
+        DEBUG1 ("S[%d].Vin = %.2f - volt after calibration: %.2fV\n\r", SNr, Module.GetPeriphVin(SNr), TempRead/Module.GetPeriphVin(SNr)*VOLTAGE_DEVIDER_V);
+        
         SaveModule();
     }
 }
@@ -858,7 +824,7 @@ void CurrentCalibration()
             }
             Module.SetPeriphNullwert(SNr, TempVolt);
 
-            if (DEBUG_LEVEL > 1)  snprintf(Buf, sizeof(Buf), "Eichen fertig: [%d] %s (Type: %d): Gemessene Spannung bei Null: %.2fV", 
+            if (DEBUG_LEVEL > 1)  snprintf(Buf, sizeof(Buf), "Eichen fertig: [%d] %s (Type: %d): Gemessene Spannung bei Null: %.2fV\n\r", 
                                         SNr, Module.GetPeriphName(SNr), Module.GetPeriphType(SNr), TempVolt);
 
             AddStatus(Buf);
@@ -906,6 +872,7 @@ float ReadAmp (int SNr)
 }
 float ReadVolt(int SNr) 
 {
+    //realVoltage durch anpassung von vin... realV = messwert/vin*VoltageDevider
     if (Module.GetPeriphIOPort(SNr, 2) < 0) { DEBUG3 ("SNr=%d - no IOPort[2] - no volt-sensor!!!\n\r", SNr);  return 0; }
     
     float TempVal = 0;
@@ -936,7 +903,7 @@ float ReadVolt(int SNr)
                 //DEBUG3 ("SNr=%d - Vin must not be zero !!!\n\r", SNr); 
                 return 0; 
             }
-            TempVolt = (float) analogReadMilliVolts(Module.GetPeriphIOPort(SNr, 2)) * VOLTAGE_DEVIDER_V / 1000;
+            TempVolt = (float) analogRead(Module.GetPeriphIOPort(SNr, 2)) / Module.GetPeriphVin(SNr) * VOLTAGE_DEVIDER_V;
             //delay(10);
         }
 
@@ -1296,7 +1263,10 @@ void OnDataSent(uint8_t *mac_addr, uint8_t sendStatus) {
 void loop()
 {
     uint32_t actTime = millis();
-        
+    #ifdef IS_REPEATER
+        SendReposts(150);
+    #endif
+
     if  ((actTime - TSSend ) > MSG_INTERVAL)                                 // Send-interval (Message or Pairing-request)
     {
         if (Module.GetPairMode()) 
@@ -1306,10 +1276,6 @@ void loop()
         }
         else SendStatus();
         GarbageMessages();
-        #ifdef IS_REPEATER
-            GarbageReposts();
-            RepostMessages();
-        #endif
     }
     
     if  ((actTime - TSCheckRel ) > RELAY_CHECK )                                 // Check Relay-State

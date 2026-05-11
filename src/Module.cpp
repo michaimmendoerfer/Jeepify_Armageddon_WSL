@@ -22,6 +22,7 @@ void InitModule()
     
     #ifdef MODULE_JL_BATTERY_SENSOR           
         #define SWITCHES_PER_SCREEN 4
+        #define VIN BOARD_ANALOG_MAX/BOARD_VOLTAGE
         //                Name        Type         Version        Address   sleep  debug  demo  pair  vMon RelayType       SCA      SCL      voltagedevier 
         //Module.Setup(MODULE_NAME, BATTERY_SENSOR, MODULE_VERSION, NULL,     false, true, false, false, 4,  RELAY_NORMAL, SDA_PIN,  SCL_PIN, VOLTAGE_DEVIDER);
         Module.Setup(MODULE_NAME, BATTERY_SENSOR, MODULE_VERSION, NULL,     false, true, false, false);
@@ -30,7 +31,7 @@ void InitModule()
         Module.PeriphSetup(1, "Extern", SENS_TYPE_AMP,    -1, -1, -1, 0,  -1, -1,     -1,      2,   2.4954,  0.066,  0,    0);
         Module.PeriphSetup(2, "Solar",  SENS_TYPE_AMP,    -1, -1, -1, 0,  -1, -1,     -1,      1,   2.5005,  0.066,  0,    0);
         Module.PeriphSetup(3, "Intern", SENS_TYPE_AMP,    -1, -1, -1, 0,  -1, -1,     -1,      0,   2.5005,  0.066,  0,    0);
-        Module.PeriphSetup(4, "VMon",   SENS_TYPE_VOLT,   -1, -1, -1, -1, -1, -1, VOLTAGE_PIN, -1,     0,    0,    1241, 0);  
+        Module.PeriphSetup(4, "VMon",   SENS_TYPE_VOLT,   -1, -1, -1, -1, -1, -1, VOLTAGE_PIN, -1,     0,    0,    VIN, 0);  
     #endif
     
     //------------------------------------------------------------------------------------------------------------------------------
