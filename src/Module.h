@@ -18,7 +18,7 @@
 
 void InitModule();
 
-#define MODULE_VERSION          "4.11"  
+#define MODULE_VERSION          "4.50"  
 #define PROTOKOLL_VERSION       "3.10"
 
 #ifdef MODULE_JL_BATTERY_SENSOR // locked
@@ -34,7 +34,7 @@ void InitModule();
 
     #define ADC_USED            0x48
     #define PAIRING_BUTTON      9
-//    #define RGBLED_PIN          8
+    #define RGBLED_PIN          8
     #define LED_PIN             10
     #define LED_OFF             0
     #define LED_ON              1
