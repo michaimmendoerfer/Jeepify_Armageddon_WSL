@@ -3,9 +3,9 @@
 
 #include "Jeepify.h"
 
-#define MODULE_JL_BATTERY_SENSOR      // (tut)
+//#define MODULE_JL_BATTERY_SENSOR      // (tut)
 //#define MODULE_SENSORDRAGON_V1_0
-//#define MODULE_SENSIBLEDRAGON_V1_2
+#define MODULE_SENSIBLEDRAGON_V1_2
 //#define MODULE_POWERDRAGON4_V1_0
 //#define MODULE_1WAY_C6
 //#define MODULE_4_TAILED_FIRINGDRAGON_V1_0
@@ -135,7 +135,7 @@ void InitModule();
     #define VOLTAGE_PIN         1
     #define VOLTAGE_DEVIDER_V   4.829787 //18k-4,7k
     #define VOLTAGE_DEVIDER_A   1.0
-    #define MODULE_NAME         "JLSDT1"
+    #define MODULE_NAME         "JL_TST"
     #define BOARD_VOLTAGE       3.3
     #define BOARD_ANALOG_MAX    4095
     #define IS_REPEATER         1

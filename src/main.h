@@ -6,6 +6,11 @@
 #define DEBUG2(...) if ((Module.GetDebugMode()) and (DEBUG_LEVEL > 1)) Serial.printf(__VA_ARGS__)
 #define DEBUG3(...) if ((Module.GetDebugMode()) and (DEBUG_LEVEL > 2)) Serial.printf(__VA_ARGS__)
 
+#define DEBUG_COM(...) if (DEBUG_LVL_COM) Serial.printf(__VA_ARGS__)
+#define DEBUG_SYS(...) if (DEBUG_LVL_SYS) Serial.printf(__VA_ARGS__)
+#define DEBUG_MAX(...) if (DEBUG_LVL_MAX) Serial.printf(__VA_ARGS__)
+#define DEBUG_HW(...) if (DEBUG_LVL_HW) Serial.printf(__VA_ARGS__)
+
 #define DEBUGS1(...) if ((Module.GetDebugMode()) and (DEBUG_LEVEL == 3)) Serial.printf(__VA_ARGS__)
 #define JX(...) (doc[__VA_ARGS__].is<JsonVariant>())
 

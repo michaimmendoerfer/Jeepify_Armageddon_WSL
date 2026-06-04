@@ -8,6 +8,11 @@
 const int DEBUG_LEVEL = 3; 
 const int _LED_SIGNAL = 1;
 
+const int DEBUG_LVL_SYS = 1;
+const int DEBUG_LVL_COM = 1;
+const int DEBUG_LVL_MAX = 0;
+const int DEBUG_LVL_HW  = 1;
+
 #define WAIT_ALIVE        15000
 #define WAIT_AFTER_SLEEP  3000
 #define RELAY_CHECK       100
@@ -105,7 +110,7 @@ void setup()
 
     InitSCL();
 
-    if (DEBUG_LEVEL > 0)                        // Show free entries
+    if (DEBUG_LVL_SYS)                        // Show free entries
     {
         preferences.begin("JeepifyInit", true);
             Serial.printf("free entries in JeepifyInit now: %d\n\r", preferences.freeEntries());
@@ -140,7 +145,7 @@ void setup()
     if (preferences.begin("JeepifyInit", true)) // import saved Module... if available
     {
         String SavedModule   = preferences.getString("Module", "");
-            DEBUG2 ("Importiere Modul: %s\n\r", SavedModule.c_str());
+            DEBUG_SYS ("Importiere Modul: %s\n\r", SavedModule.c_str());
             char ToImport[250];
             strcpy(ToImport,SavedModule.c_str());
             if (strcmp(ToImport, "") != 0) Module.Import(ToImport);
@@ -158,7 +163,7 @@ void setup()
     Module.SetDebugMode(true);
 
     if (esp_now_init() != 0) 
-        DEBUG1 ("Error initializing ESP-NOW\n\r");
+        DEBUG_SYS ("Error initializing ESP-NOW\n\r");
     #ifdef ESP8266
         esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
     #endif 
@@ -177,7 +182,7 @@ void setup()
 
     AddStatus("Get Peers");
 
-    if (DEBUG_LEVEL > 1) ReportAll();    
+    if (DEBUG_LVL_SYS) ReportAll();    
     
     RegisterPeers();  
     AddStatus("Init fertig");
@@ -200,7 +205,7 @@ void GarbageMessages()
             
             if (millis() > RMItem->SaveTime + SEND_CMD_MSG_HOLD*1000)
             {
-                DEBUG3 ("Message aus RMList entfernt\n\r");
+                DEBUG_COM ("Message aus RMList entfernt\n\r");
                 ReceivedMessagesList.remove(i);
                 delete RMItem;
             }
@@ -242,7 +247,7 @@ void SendStatus (int Pos)
             if (Module.isPeriphSwitch(SNr))
             {
                 
-                DEBUG3 ("SendStatus(%d) - %s (Switch): %.0f\n\r",SNr, Module.GetPeriphName(SNr), Module.GetPeriphValue(SNr, 0));
+                DEBUG_MAX ("SendStatus(%d) - %s (Switch): %.0f\n\r",SNr, Module.GetPeriphName(SNr), Module.GetPeriphValue(SNr, 0));
             }
             if (Module.GetPeriphIOPort(SNr, 2) > -1)
                 Module.SetPeriphValue(SNr, ReadVolt(SNr),      2);
@@ -279,18 +284,15 @@ void SendStatus (int Pos)
     if (PeriphsSent > 0)
     {
         SetMessageLED(2);
-        //DEBUG2 ("JSON: %s\n\r", jsondata.c_str());
         if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), 250) == 0) 
         {
             //DEBUG3("ESP_OK\\r");  
         }
         else 
         {
-            DEBUG1 ("ESP_ERROR (SendStatus-2)\n\r"); 
+            DEBUG_COM ("ESP_ERROR (SendStatus-2)\n\r"); 
         }
-        DEBUG3 ("Länge: %d - %s\n\r", strlen(jsondata.c_str()), jsondata.c_str());
     }
-    Serial.printf("nach ESPSend: %lu\n\r", millis());
 }
 void SendPairingRequest() 
 {
@@ -331,7 +333,7 @@ void SendPairingRequest()
 
     esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), 240);  
     
-    DEBUG3 ("\nSending: %s\n\r", jsondata.c_str());                               
+    DEBUG_MAX ("\nSending: %s\n\r", jsondata.c_str());                               
 }
 void SendConfirm(const uint8_t * MAC, uint32_t TSConfirm) 
 {
@@ -357,18 +359,18 @@ void SendConfirm(const uint8_t * MAC, uint32_t TSConfirm)
 
     serializeJson(doc, jsondata); 
 
-    DEBUG2 ("%lu: Sending Confirm (%lu) to: %s ", millis(), TSConfirm, FindPeerByMAC(MAC)->GetName()); 
+    DEBUG_COM ("%lu: Sending Confirm (%lu) to: %s ", millis(), TSConfirm, FindPeerByMAC(MAC)->GetName()); 
             
     if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), 200) == 0) 
     {
-        DEBUG3 ("ESP_OK\n\r");  
+        DEBUG_MAX ("ESP_OK\n\r");  
     }
     else 
     {
-        DEBUG1 ("ESP_ERROR\n\r"); 
+        DEBUG_MAX ("ESP_ERROR\n\r"); 
     }     
     
-    DEBUG3 ("%s", jsondata.c_str());
+    DEBUG_COM ("%s", jsondata.c_str());
     
     AddStatus("Send Confirm...");                                     
 }
@@ -384,7 +386,7 @@ void SendReposts(int timer_ms)
                 if (RMItem->TS + REPOST_TIMEOUT < actTime)
                 {
                     esp_err_t result = esp_now_send(broadcastAddressAll, (uint8_t*) RMItem->Msg, 250);
-                            DEBUG3("ESPNOW: %d - %s\n\r", result, RMItem->Msg); 
+                            DEBUG_COM("ESPNOW: %d - %s\n\r", result, RMItem->Msg); 
                 }
                 RepeatMessagesList.shift();
                 //delete (RMItem);
@@ -441,7 +443,7 @@ void AddStatus(String Msg)
 void ToggleSwitch(int SNr, int State=2)
 {
     int Value = Module.GetPeriphValue(SNr, 0);
-    DEBUGS1 ("Value of Periph(%u) = %u\n\r", SNr, Value);
+    DEBUG_HW ("Value of Periph(%u) = %u\n\r", SNr, Value);
     Module.SetPeriphOldValue(SNr, Value, 0);
     
     switch (State)
@@ -468,11 +470,10 @@ bool GetRelayState(int SNr)
                 //use ADC
                 float TempVal  = ADCBoard[ADC_Module].readADC_SingleEnded(Module.GetPeriphIOPort(SNr, 2));
                 float TempVolt = ADCBoard[ADC_Module].computeVolts(TempVal) * VOLTAGE_DEVIDER_V; 
-                //delay(10);
-                //DEBUG3 ("Relaystate: SNr:%d - TempVal: %.2f - V:%.2f\n\r", SNr, TempVal, TempVolt);
+                DEBUG_HW ("Relaystate: SNr:%d - TempVal: %.2f - V:%.2f\n\r", SNr, TempVal, TempVolt);
                 if (TempVolt > 8) return true;
             #else
-                DEBUG1 ("Critical Config-Error ADC - Pos 1");
+                DEBUG_HW ("Critical Config-Error ADC - Pos 1");
             #endif
         }
         else
@@ -489,13 +490,13 @@ bool GetRelayState(int SNr)
         {
             #if defined(PORT0) && defined(ADC0)
                 RawState = IOBoard[PORT_Module]->digitalRead(Module.GetPeriphIOPort(SNr, 0));
-                DEBUG3 ("Relay(%d)-State = %d (IOBoard[PORT_Module]->DigitalRead of port %d)\n\r", SNr, RawState, Module.GetPeriphIOPort(SNr, 0));
+                DEBUG_HW ("Relay(%d)-State = %d (IOBoard[PORT_Module]->DigitalRead of port %d)\n\r", SNr, RawState, Module.GetPeriphIOPort(SNr, 0));
             #endif
         }
         else
         {
             RawState = digitalRead(Module.GetPeriphIOPort(SNr, 0));
-            //DEBUG3 ("Relay(%d)-State = %d (DigitalRead of port %d)\n\r", SNr, RawState, Module.GetPeriphIOPort(SNr, 0));
+            DEBUG_HW ("Relay(%d)-State = %d (DigitalRead of port %d)\n\r", SNr, RawState, Module.GetPeriphIOPort(SNr, 0));
         }
         
         if ((RawState == 0) and (Module.GetRelayType() == RELAY_REVERSED)) { return true; }
@@ -517,11 +518,12 @@ void SetRelayState(int SNr, bool State)
                 if (Module.GetRelayType() == RELAY_NORMAL) 
                 {
                     IOBoard[PORT_Module]->digitalWrite(Module.GetPeriphIOPort(SNr, 0), State);
-                    DEBUGS1 ("IOBoard[%u]->digitalWrite(Module.GetPeriphIOPort(%u, 0), %u)", PORT_Module, SNr, State);
+                    DEBUG_HW ("IOBoard[%u]->digitalWrite(Module.GetPeriphIOPort(%u, 0), %u)", PORT_Module, SNr, State);
                 }
                 else 
                 {
                     IOBoard[PORT_Module]->digitalWrite(Module.GetPeriphIOPort(SNr, 0), !State);
+                    DEBUG_HW ("IOBoard[%u]->digitalWrite(Module.GetPeriphIOPort(%u, 0), %u)", PORT_Module, SNr, !State);
                 }
             #endif
         }
@@ -534,7 +536,7 @@ void SetRelayState(int SNr, bool State)
             else
             {
                 digitalWrite(Module.GetPeriphIOPort(SNr, 0), State);
-                Serial.printf("Setze Port %d auf %d\n\r",Module.GetPeriphIOPort(SNr, 0), State);
+                DEBUG_HW ("Setze Port %d auf %d\n\r",Module.GetPeriphIOPort(SNr, 0), State);
             }
         }
     }
@@ -558,19 +560,19 @@ void SetRelayState(int SNr, bool State)
         {
             #ifdef PORT0
                 IOBoard[_PORT_Module]->digitalWrite(_Port, 1);
-                DEBUGS1 ("Setze PCF%u:%u auf 1\n\r", _PORT_Module, _Port);
+                DEBUG_HW ("Setze PCF%u:%u auf 1\n\r", _PORT_Module, _Port);
                 delay(500);
                 IOBoard[_PORT_Module]->digitalWrite(_Port, 0);
-                DEBUGS1 ("Setze PCF%u:%u auf 0\n\r", _PORT_Module, _Port);
+                DEBUG_HW ("Setze PCF%u:%u auf 0\n\r", _PORT_Module, _Port);
             #endif
         }
         else
         {
             digitalWrite(_Port, 1);
-            DEBUG2 ("Setze _Port:%d auf on\n\r", _Port);
+            DEBUG_HW ("Setze _Port:%d auf on\n\r", _Port);
             delay(500); //evtl tiefer
             digitalWrite(_Port, 0);
-            DEBUG2 ("Setze _Port:%d auf off\n\r", _Port);
+            DEBUG_HW ("Setze _Port:%d auf off\n\r", _Port);
         }
     }
     
@@ -589,7 +591,7 @@ void UpdateDataFromSwitches()
         if (Module.isPeriphSwitch(SNr))
         {
             Module.SetPeriphValue(SNr, GetRelayState(SNr), 0);
-            //Serial.printf("SNr:%d, RelayState:%d, GetPeriphValue:%.2f\n\r", SNr, Value, Module.GetPeriphValue(SNr, 0));
+            DEBUG_MAX("SNr:%d, RelayState:%d, GetPeriphValue:%.2f\n\r", SNr, GetRelayState(SNr), Module.GetPeriphValue(SNr, 0));
         }
     }
 }
@@ -610,8 +612,8 @@ void GoToSleep()
     */
     AddStatus("Send Going to sleep......"); 
     
-    DEBUG2 ("Going to sleep at: %lu....................................................................................\n\r", millis());
-    DEBUG2 ("LastContact    at: %lu\n\r", Module.GetLastContact()); 
+    DEBUG_SYS ("Going to sleep at: %lu....................................................................................\n\r", millis());
+    DEBUG_SYS ("LastContact    at: %lu\n\r", Module.GetLastContact()); 
     
     #ifdef ESP32
     //gpio_deep_sleep_hold_en();
@@ -630,11 +632,8 @@ void SaveModule()
         String ExportStringPeer = Module.Export();
         int PutStringReturn = preferences.putString("Module", ExportStringPeer);
 
-        if (1) //(DEBUG_LEVEL > 2) 
-        {
-            Serial.printf("SaveModule(): putString = %d, writing: %s\n\r", PutStringReturn, ExportStringPeer.c_str());
-            DEBUG2 ("Testread Module: %s\n\r", preferences.getString("Module", "").c_str());
-        }
+        DEBUG_SYS("SaveModule(): putString = %d, writing: %s\n\r", PutStringReturn, ExportStringPeer.c_str());
+        DEBUG_SYS("Testread Module: %s\n\r", preferences.getString("Module", "").c_str());
     preferences.end();
 }
 void GetModule()
@@ -644,18 +643,15 @@ void GetModule()
         
         ImportStringPeer = preferences.getString("Module", "");
 
-        if (DEBUG_LEVEL > 2) 
-        {
-            Serial.printf("GetModule(): getString = %s\n\r", ImportStringPeer.c_str());
-        }
+        DEBUG_SYS("GetModule(): getString = %s\n\r", ImportStringPeer.c_str());
         
         char ToImport[250];
         strcpy(ToImport,ImportStringPeer.c_str());
-        if (DEBUG_LEVEL > 0) Serial.printf("ToImport = %s\r\n", ToImport);
-        
+        DEBUG_SYS("ToImport = %s\r\n", ToImport);
+    
         if (strcmp(ToImport, "") != 0) Module.Import(ToImport);
         
-        if (DEBUG_LEVEL > 0) Serial.printf("Module.Vin[4] = %.2f", Module.GetPeriphVin(4));
+        DEBUG_SYS("Module.Vin[4] = %.2f", Module.GetPeriphVin(4));
 
     preferences.end();
 }
@@ -759,7 +755,7 @@ void VoltageCalibration(int SNr, float V)
     //                                       vin   = messwert/realV*VoltageDevider
     char Buf[100] = {}; 
   
-    DEBUG1 ("SNr %d: Volt-Messung kalibrieren... Port: %d, Type:%d\n\r", SNr, Module.GetPeriphIOPort(SNr, 2), Module.GetPeriphType(SNr));
+    DEBUG_SYS("SNr %d: Volt-Messung kalibrieren... Port: %d, Type:%d\n\r", SNr, Module.GetPeriphIOPort(SNr, 2), Module.GetPeriphType(SNr));
     
     if (Module.GetPeriphType(SNr) == SENS_TYPE_VOLT) {
         float TempRead = 0;
@@ -772,14 +768,14 @@ void VoltageCalibration(int SNr, float V)
         }
         TempRead = (float) TempRead / 20;
         
-        DEBUG3 ("TempRead nach filter = %.2f (%.2fV)\n\r", TempRead, TempRead / Module.GetPeriphVin(SNr)*VOLTAGE_DEVIDER_V);
-        DEBUG3 ("Eich-soll Volt: %.2f\n\r", V);
+        DEBUG_SYS ("TempRead nach filter = %.2f (%.2fV)\n\r", TempRead, TempRead / Module.GetPeriphVin(SNr)*VOLTAGE_DEVIDER_V);
+        DEBUG_SYS ("Eich-soll Volt: %.2f\n\r", V);
        
         NewVin = TempRead / V * VOLTAGE_DEVIDER_V;
         Module.SetPeriphVin(SNr, NewVin);        
-        DEBUG3 ("ausgelesen: NewVin = %.2f\n\r", Module.GetPeriphVin(SNr));
+        DEBUG_SYS ("ausgelesen: NewVin = %.2f\n\r", Module.GetPeriphVin(SNr));
         
-        DEBUG1 ("S[%d].Vin = %.2f - volt after calibration: %.2fV\n\r", SNr, Module.GetPeriphVin(SNr), TempRead/Module.GetPeriphVin(SNr)*VOLTAGE_DEVIDER_V);
+        DEBUG_SYS ("S[%d].Vin = %.2f - volt after calibration: %.2fV\n\r", SNr, Module.GetPeriphVin(SNr), TempRead/Module.GetPeriphVin(SNr)*VOLTAGE_DEVIDER_V);
         
         SaveModule();
     }
@@ -819,12 +815,11 @@ void CurrentCalibration()
                 TempVolt = BOARD_VOLTAGE / BOARD_ANALOG_MAX * TempVal;
             }
 
-            if (DEBUG_LEVEL > 2) { 
-            Serial.print("TempVolt: "); Serial.println(TempVolt);
-            }
+            DEBUG_SYS("TempVolt: %.2f", TempVolt);
+
             Module.SetPeriphNullwert(SNr, TempVolt);
 
-            if (DEBUG_LEVEL > 1)  snprintf(Buf, sizeof(Buf), "Eichen fertig: [%d] %s (Type: %d): Gemessene Spannung bei Null: %.2fV\n\r", 
+            DEBUG_SYS(Buf, sizeof(Buf), "Eichen fertig: [%d] %s (Type: %d): Gemessene Spannung bei Null: %.2fV\n\r", 
                                         SNr, Module.GetPeriphName(SNr), Module.GetPeriphType(SNr), TempVolt);
 
             AddStatus(Buf);
@@ -834,7 +829,7 @@ void CurrentCalibration()
 }
 float ReadAmp (int SNr) 
 {
-    if (Module.GetPeriphIOPort(SNr,3) < 0) { DEBUG3 ("SNR=%d, no IOPort[3] specified !!!\n\r",SNr);  return 0; }
+    if (Module.GetPeriphIOPort(SNr,3) < 0) { DEBUG_SYS ("SNR=%d, no IOPort[3] specified !!!\n\r",SNr);  return 0; }
 
     float TempVal      = 0;
     float TempVolt     = 0;
@@ -862,18 +857,18 @@ float ReadAmp (int SNr)
     }
     
     TempAmp = AmpSamples/AMP_SAMPLES;
-    DEBUG3 ("ReadAmp %d - raw %.3f (%.2f)", SNr, TempVolt, TempAmp);
-    //DEBUG3 ("ReadAmp: SNr=%d, port=%d: Raw:%.3f=%.3fV Null:%.4f --> %.4fV --> %.4fA", SNr, Module.GetPeriphIOPort(SNr, 3), TempVal, TempVolt, Module.GetPeriphNullwert(SNr), TempVolt, TempAmp);
+    DEBUG_SYS ("ReadAmp %d - raw %.3f (%.2f)", SNr, TempVolt, TempAmp);
+    //DEBUG_SYS ("ReadAmp: SNr=%d, port=%d: Raw:%.3f=%.3fV Null:%.4f --> %.4fV --> %.4fA", SNr, Module.GetPeriphIOPort(SNr, 3), TempVal, TempVolt, Module.GetPeriphNullwert(SNr), TempVolt, TempAmp);
 
     if (abs(TempAmp) < SCHWELLE) TempAmp = 0;
-    DEBUG3 (" --> %.2fA\n\r", TempAmp);
+    DEBUG_SYS (" --> %.2fA\n\r", TempAmp);
     
     return (TempAmp); 
 }
 float ReadVolt(int SNr) 
 {
     //realVoltage durch anpassung von vin... realV = messwert/vin*VoltageDevider
-    if (Module.GetPeriphIOPort(SNr, 2) < 0) { DEBUG3 ("SNr=%d - no IOPort[2] - no volt-sensor!!!\n\r", SNr);  return 0; }
+    if (Module.GetPeriphIOPort(SNr, 2) < 0) { DEBUG_SYS ("SNr=%d - no IOPort[2] - no volt-sensor!!!\n\r", SNr);  return 0; }
     
     float TempVal = 0;
     float TempVolt = 0;
@@ -892,7 +887,7 @@ float ReadVolt(int SNr)
                 TempVolt = ADCBoard[ADC_Module].computeVolts(TempVal) * VOLTAGE_DEVIDER_V; 
                 //delay(1);
             #else
-                DEBUG1 ("Critical Config-Error ADC");
+                DEBUG_SYS ("Critical Config-Error ADC");
             #endif
         }
         else
@@ -900,7 +895,7 @@ float ReadVolt(int SNr)
             //use io
             if (Module.GetPeriphVin(SNr) == 0) 
             { 
-                //DEBUG3 ("SNr=%d - Vin must not be zero !!!\n\r", SNr); 
+                //DEBUG_SYS ("SNr=%d - Vin must not be zero !!!\n\r", SNr); 
                 return 0; 
             }
             TempVolt = (float) analogRead(Module.GetPeriphIOPort(SNr, 2)) / Module.GetPeriphVin(SNr) * VOLTAGE_DEVIDER_V;
@@ -911,7 +906,7 @@ float ReadVolt(int SNr)
     }
   
     TempVolt = VoltSamples/10;
-    DEBUG3 ("ReadVolt %d - %.2f\n\r", SNr, TempVolt);
+    DEBUG_SYS ("ReadVolt %d - %.2f\n\r", SNr, TempVolt);
 
     return TempVolt;
 }
@@ -960,8 +955,8 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
         //Packet verarbeiten
         if ( (memcmp(_To, Module.GetBroadcastAddress(), 6) == 0) or (memcmp(_To, broadcastAddressAll, 6) == 0) )
         {
-            DEBUG3 ("%lu: Recieved from: %s\n\r", _TS, (char *)MacFromS.c_str()); 
-            DEBUG3 ("%s\n\r", jsondata.c_str());
+            DEBUG_COM("%lu: Recieved from: %s\n\r", _TS, (char *)MacFromS.c_str()); 
+            DEBUG_COM("%s\n\r", jsondata.c_str());
 
             //already recevied?
             if (ReceivedMessagesList.size() > 0)
@@ -972,7 +967,7 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                     
                     if ( (memcmp(RMItem->From, _From, 6) == 0) and (RMItem->TS ==_TS) )
                     {
-                        DEBUG3 ("Message %lu: %s schon verarbeitet\n\r", _TS, MacFromS.c_str());
+                        DEBUG_COM ("Message %lu: %s schon verarbeitet\n\r", _TS, MacFromS.c_str());
                         return;
                     }
                 }
@@ -984,7 +979,7 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
             RMItem->TS = _TS;
             RMItem->SaveTime = millis();
             ReceivedMessagesList.add(RMItem);
-            DEBUG3 ("%d.Message %lu: %s gespeichert\n\r", ReceivedMessagesList.size(), _TS, MacFromS.c_str());
+            DEBUG_COM ("%d.Message %lu: %s gespeichert\n\r", ReceivedMessagesList.size(), _TS, MacFromS.c_str());
             
             if (JX(SEND_CMD_JSON_CONFIRM)) SendConfirm(_From, _TS);
             
@@ -1008,7 +1003,7 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                             SavePeers();
                             RegisterPeers();
                             
-                            if (DEBUG_LEVEL > 1) 
+                            if (DEBUG_LVL_SYS) 
                             {
                                 Serial.printf("New Peer added: %s (Type:%d), MAC:%s\n\r", Peer->GetName(), Peer->GetType(), MacFromS.c_str());
                                 Serial.println("Saving Peers after received new one...");
@@ -1020,7 +1015,7 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                     case SEND_CMD_STAY_ALIVE: 
                         Module.SetLastContact(millis());
                         WaitForContact = WAIT_ALIVE; 
-                        DEBUG2 ("LastContact: %6lu\n\r", Module.GetLastContact());
+                        DEBUG_SYS ("LastContact: %6lu\n\r", Module.GetLastContact());
                         break;
                     case SEND_CMD_SLEEPMODE_ON:
                         AddStatus("Sleep: on");  
@@ -1135,12 +1130,12 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                         }                
                         break;
                     case SEND_CMD_SWITCH_TOGGLE:
-                        DEBUGS1 ("Switch-Toggle received\n\r");
+                        DEBUG_COM ("Switch-Toggle received\n\r");
                         if (JX(SEND_CMD_JSON_PERIPH_POS))    
                         {
-                            DEBUGS1 ("PeriphPos received\n\r");
+                            DEBUG_COM ("PeriphPos received\n\r");
                             Pos = doc[SEND_CMD_JSON_PERIPH_POS];
-                            DEBUGS1 ("Module.isPeriphEmpty(%d) == %d\n\r", Pos, Module.isPeriphEmpty(Pos));
+                            DEBUG_COM ("Module.isPeriphEmpty(%d) == %d\n\r", Pos, Module.isPeriphEmpty(Pos));
                             if (Module.isPeriphEmpty(Pos) == false) ToggleSwitch(Pos);
                         }
                         break;
@@ -1181,7 +1176,7 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                             {
                                 Module.SetPeriphVperAmp(Pos, NewVperAmp);
                                 SaveModule();
-                                DEBUG1 ("Updated VperAmp at Pos:%d to %.3f\n\r", Pos, NewVperAmp);
+                                DEBUG_COM ("Updated VperAmp at Pos:%d to %.3f\n\r", Pos, NewVperAmp);
                             }
                         }
                         break;
@@ -1195,7 +1190,7 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                             {
                                 Module.SetPeriphNullwert(Pos, NewNullwert);
                                 SaveModule();
-                                DEBUG1 ("Updated Nullwert at Pos:%d to %.3f\n\r", Pos, NewNullwert);
+                                DEBUG_COM ("Updated Nullwert at Pos:%d to %.3f\n\r", Pos, NewNullwert);
                             }
                         }
                         break;
@@ -1302,7 +1297,7 @@ void loop()
     
     if ((Module.GetSleepMode()) and (!Module.GetPairMode()) and (actTime+100 - Module.GetLastContact() > WaitForContact))       
     {
-        DEBUG1 ("actTime:%lu, LastContact:%lu - (actTime - Module.GetLastContact()) = %lu, WaitForContact = %lu, - Try to sleep...........................................................\n\r", actTime, Module.GetLastContact(), actTime - Module.GetLastContact(), WaitForContact);
+        DEBUG_COM ("actTime:%lu, LastContact:%lu - (actTime - Module.GetLastContact()) = %lu, WaitForContact = %lu, - Try to sleep...........................................................\n\r", actTime, Module.GetLastContact(), actTime - Module.GetLastContact(), WaitForContact);
         Module.SetLastContact(millis());
         GoToSleep();
     }
@@ -1324,7 +1319,7 @@ void loop()
             else 
             {
                 if ((actTime - TSButton) > 5000) {
-                    DEBUG1 ("Button pressed... Clearing Peers and Reset");
+                    DEBUG_COM ("Button pressed... Clearing Peers and Reset");
                     AddStatus("Clearing Peers and Reset");
                     #ifdef ESP32
                       nvs_flash_erase(); nvs_flash_init();
@@ -1362,7 +1357,7 @@ bool MACequals( uint8_t *MAC1, uint8_t *MAC2)
 }
 void InitSCL()
 {
-    if (DEBUG_LEVEL > 0)
+    if (DEBUG_LVL_HW)
     {
         #if defined(PORT0) || defined(ADC0)
             byte error, address;
@@ -1412,65 +1407,65 @@ void InitSCL()
     #ifdef PORT0                            // init IOBoard0
 	    IOBoard[0] = &IOBoard0;  
         for (int i=0; i<16; i++) IOBoard[0]->digitalWrite(i, 0);
-        DEBUG1 ("IOBoard0 initialised.\n\r");
+        DEBUG_HW ("IOBoard0 initialised.\n\r");
     #endif
     #ifdef PORT1                            // init IOBoard1
         IOBoard[1] = &IOBoard1; 
         for (int i=0; i<16; i++) IOBoard[1]->digitalWrite(i, 0);
-        DEBUG1 ("IOBoard1 initialised.\n\r");
+        DEBUG_HW ("IOBoard1 initialised.\n\r");
     #endif
     #ifdef PORT2                            // init IOBoard2
         IOBoard[2] = &IOBoard2; 
         for (int i=0; i<16; i++) IOBoard[2]->digitalWrite(i, 0);
-        DEBUG1 ("IOBoard2 not found!\n\r");
+        DEBUG_HW ("IOBoard2 not found!\n\r");
     #endif
     #ifdef PORT3                            // init IOBoard3
         IOBoard[3] = &IOBoard3; 
         for (int i=0; i<16; i++) IOBoard[3]->digitalWrite(i, 0); 
-        DEBUG1 ("IOBoard3 not found!\n\r");
+        DEBUG_HW ("IOBoard3 not found!\n\r");
     #endif
     #ifdef ADC0                             // init ADS
         ADCBoard[0].setGain(GAIN_TWOTHIRDS);   // 0.1875 mV/Bit .... +- 6,144V
         if (!ADCBoard[0].begin(ADC0)) { 
-            DEBUG1 ("ADC0 not found!\n\r");
+            DEBUG_HW ("ADC0 not found!\n\r");
             while (1);
         }
         else
         {
-            DEBUG2 ("ADC0 initialised.\n\r");
+            DEBUG_HW ("ADC0 initialised.\n\r");
         }
     #endif
     #ifdef ADC1                             // init ADS
         ADCBoard[1].setGain(GAIN_TWOTHIRDS);   // 0.1875 mV/Bit .... +- 6,144V
         if (!ADCBoard[1].begin(ADC1)) { 
-            DEBUG1 ("ADC1 not found!\n\r");
+            DEBUG_HW ("ADC1 not found!\n\r");
             while (1);
         }
         else
         {
-            DEBUG2 ("ADC1 initialised.\n\r");
+            DEBUG_HW ("ADC1 initialised.\n\r");
         }
     #endif
     #ifdef ADC2                             // init ADS
         ADCBoard[2].setGain(GAIN_TWOTHIRDS);   // 0.1875 mV/Bit .... +- 6,144V
         if (!ADCBoard[2].begin(ADC2)) { 
-            DEBUG1 ("ADC2 not found!\n\r");
+            DEBUG_HW ("ADC2 not found!\n\r");
             while (1);
         }
         else
         {
-            DEBUG2 ("ADC2 initialised.\n\r");
+            DEBUG_HW ("ADC2 initialised.\n\r");
         }
     #endif
     #ifdef ADC3                            // init ADS
         ADCBoard[3].setGain(GAIN_TWOTHIRDS);   // 0.1875 mV/Bit .... +- 6,144V
         if (!ADCBoard[3].begin(ADC3)) { 
-            DEBUG1 ("ADC3 not found!\n\r");
+            DEBUG_HW ("ADC3 not found!\n\r");
             while (1);
         }
         else
         {
-            DEBUG2 ("ADC3 initialised.\n\r");
+            DEBUG_HW ("ADC3 initialised.\n\r");
         }
     #endif
 }
