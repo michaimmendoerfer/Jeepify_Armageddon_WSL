@@ -1,5 +1,5 @@
 //#define KILL_NVS 1
-//Version 3.50
+//Version 3.51
 
 #include <Arduino.h>
 #include <Module.h>
@@ -10,7 +10,7 @@ const int _LED_SIGNAL = 1;
 
 const int DEBUG_LVL_SYS = 1;
 const int DEBUG_LVL_COM = 1;
-const int DEBUG_LVL_MAX = 0;
+const int DEBUG_LVL_MAX = 1;
 const int DEBUG_LVL_HW  = 1;
 
 #define WAIT_ALIVE        15000
