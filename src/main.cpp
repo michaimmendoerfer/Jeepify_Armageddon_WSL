@@ -1,5 +1,5 @@
 //#define KILL_NVS 1
-//Version 3.51
+//Version 3.52
 
 #include <Arduino.h>
 #include <Module.h>
@@ -13,10 +13,13 @@ const int DEBUG_LVL_COM = 1;
 const int DEBUG_LVL_MAX = 1;
 const int DEBUG_LVL_HW  = 1;
 
-#define WAIT_ALIVE        15000
-#define WAIT_AFTER_SLEEP  3000
+#define WAIT_ALIVE        15*1000
+#define WAIT_FOR_WIFI     300*1000
+#define WAIT_AFTER_SLEEP  3*1000
 #define RELAY_CHECK       100
 #define AMP_SAMPLES       3
+
+bool KillNVS = true;
 
 uint32_t WaitForContact = WAIT_AFTER_SLEEP;
 
@@ -73,13 +76,14 @@ u_int8_t    broadcastAddressAll[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 const char *broadCastAddressAllC   = "FFFFFFFFFFFF";
 int         lastPeriphSent = -1;
 
-volatile uint32_t TSButton   = 0;
-volatile uint32_t TSSend     = 0;
-volatile uint32_t TSPair     = 0;
-volatile uint32_t TSLed      = 0;
-volatile uint32_t TSStatus   = 0;
-volatile uint32_t TSSettings = 0;
-volatile uint32_t TSCheckRel = 0;
+volatile uint32_t TSButton    = 0;
+volatile uint32_t TSSend      = 0;
+volatile uint32_t TSPair      = 0;
+volatile uint32_t TSLed       = 0;
+volatile uint32_t TSStatus    = 0;
+volatile uint32_t TSSettings  = 0;
+volatile uint32_t TSCheckRel  = 0;
+volatile uint32_t TSLastWiFi  = 0;
 
 PeerClass Module;
 Preferences preferences;
@@ -937,6 +941,7 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
         uint32_t _TS;
         int _TTL;
 
+        TSLastWiFi = millis();
         //Packet muss From, To und TS haben, sonst ignorieren
         if ( JX(SEND_CMD_JSON_FROM) and JX(SEND_CMD_JSON_TO) and JX(SEND_CMD_JSON_TS))
         {
@@ -1016,6 +1021,19 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                         Module.SetLastContact(millis());
                         WaitForContact = WAIT_ALIVE; 
                         DEBUG_SYS ("LastContact: %6lu\n\r", Module.GetLastContact());
+                        if (JX(SEND_CMD_JSON_PAIRING))
+                        { if (doc[SEND_CMD_JSON_PAIRING] == "aktiv") 
+                            { 
+                                Module.SetPairMode(true); 
+                                TSPair = millis();    
+                                AddStatus("Pairing beginnt"); 
+                                SendStatus();
+                                #ifdef MODULE_TERMINATOR_PRO
+                                smartdisplay_led_set_rgb(1,0,0);
+                                #endif
+                            }
+                        }
+            MacFromS = (String) doc[SEND_CMD_JSON_FROM];
                         break;
                     case SEND_CMD_SLEEPMODE_ON:
                         AddStatus("Sleep: on");  
@@ -1262,7 +1280,12 @@ void loop()
         SendReposts(150);
     #endif
 
-    if  ((actTime - TSSend ) > MSG_INTERVAL)                                 // Send-interval (Message or Pairing-request)
+    if ((actTime - TSLastWiFi) > WAIT_FOR_WIFI)                                   // check WiFi-Connection
+    {
+        ESP.restart();
+    }
+    
+    if ((actTime - TSSend ) > MSG_INTERVAL)                                       // Send-interval (Message or Pairing-request)
     {
         if (Module.GetPairMode()) 
         {
@@ -1273,13 +1296,13 @@ void loop()
         GarbageMessages();
     }
     
-    if  ((actTime - TSCheckRel ) > RELAY_CHECK )                                 // Check Relay-State
+    if ((actTime - TSCheckRel ) > RELAY_CHECK )                                   // Check Relay-State
     {
         TSCheckRel = actTime;
         UpdateDataFromSwitches();
     }
     
-    if (((actTime - TSPair ) > PAIR_INTERVAL ) and (Module.GetPairMode()))     // end Pairing after pairing interval
+    if (((actTime - TSPair ) > PAIR_INTERVAL ) and (Module.GetPairMode()))        // end Pairing after pairing interval
     {
         TSPair = 0;
         Module.SetPairMode(false);
@@ -1287,7 +1310,7 @@ void loop()
         SetMessageLED(0);
     }
     
-    if ((actTime - TSLed > MSGLIGHT_INTERVAL+300) and (TSLed > 0))                 // clear LED after LED interval
+    if ((actTime - TSLed > MSGLIGHT_INTERVAL+300) and (TSLed > 0))                // clear LED after LED interval
     {
         if (Module.GetPairMode())
             SetMessageLED(1);
@@ -1302,7 +1325,7 @@ void loop()
         GoToSleep();
     }
     
-    #ifdef PAIRING_BUTTON                                                       // check for Pairing/Reset Button
+    #ifdef PAIRING_BUTTON                                                         // check for Pairing/Reset Button
         int BB1 = !digitalRead(PAIRING_BUTTON);
         int BB2 = 0;//!digitalRead(0);
         if ((BB1 == 1) or (BB2 == 1)) 

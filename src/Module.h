@@ -135,7 +135,7 @@ void InitModule();
     #define VOLTAGE_PIN         1
     #define VOLTAGE_DEVIDER_V   4.829787 //18k-4,7k
     #define VOLTAGE_DEVIDER_A   1.0
-    #define MODULE_NAME         "JL_TST"
+    #define MODULE_NAME         "JL_BA2"
     #define BOARD_VOLTAGE       3.3
     #define BOARD_ANALOG_MAX    4095
     #define IS_REPEATER         1
