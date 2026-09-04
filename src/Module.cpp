@@ -11,7 +11,7 @@ const char *ArrRaw[MAX_PERIPHERALS]      = {"Raw0", "Raw1", "Raw2", "Raw3", "Raw
 const char *ArrRawVolt[MAX_PERIPHERALS]  = {"RaV0", "RaV1", "RaV2", "RaV3", "RaV4", "RaV5", "RaV6", "RaV7", "RaV8"};
 const char *ArrVperAmp[MAX_PERIPHERALS]  = {"VpA0", "VpA1", "VpA2", "VpA3", "VpA4", "VpA5", "VpA6", "VpA7", "VpA8"};
 const char *ArrVin[MAX_PERIPHERALS]      = {"Vin0", "Vin1", "Vin2", "Vin3", "Vin4", "Vin5", "Vin6", "Vin7", "Vin8"};
-const char *ArrPeriph[MAX_PERIPHERALS]   = {"Per0", "Per1", "Per2", "Per3", "Per4", "Per5", "Per6", "Per6", "Per7"};
+const char *ArrPeriph[MAX_PERIPHERALS]   = {"Per0", "Per1", "Per2", "Per3", "Per4", "Per5", "Per6", "Per7", "Per8"};
 
 void InitModule()
 {   
@@ -120,15 +120,6 @@ void InitModule()
         Module.PeriphSetup(2, "VMon",   SENS_TYPE_VOLT,    -1, -1, -1, -1,  -1, -1, VOLTAGE_PIN, -1,   0,       0,      1241,   0);
     #endif
 
-    #ifdef MODULE_4WAY_ESP32_BIGGY   
-        #define SWITCHES_PER_SCREEN 4
-        //                Name        Type         Version        Address   sleep  debug  demo  pair  vMon RelayType       SCA      SCL      voltagedevier 
-        Module.Setup(MODULE_NAME, SWITCH_2_WAY, MODULE_VERSION, NULL,     false, true,  false, false);
-        //                      Name     Type             I2C                                      IO(0/1)        VOLT  AMP   NULL     VpA      Vin  PeerID  
-        Module.PeriphSetup(0, "Sw 0",   SENS_TYPE_LT_AMP,  PORT0, PORT0, ADC1, -1,     0, 1,          0, -1,      0,       0.040,  1241,   0);
-        Module.PeriphSetup(1, "Sw 1",   SENS_TYPE_LT_AMP,  PORT0, PORT0, ADC1, -1,     2, 3,          1, -1,      0,       0.040,  1241,   0);
-    #endif
-
     #ifdef ESP8266_MODULE_4S_INTEGRATED       
         #define SWITCHES_PER_SCREEN 4
         //                Name        Type         Version        Address   sleep  debug  demo  pair  vMon   RelayType      sda    scl  voltagedevier 
@@ -193,23 +184,19 @@ void InitModule()
 
         if (Module.GetPeriphIOPort(SNr, 2) >= 0)   
         {
-            #ifndef ADC0
-                if (Module.GetPeriphI2CPort(SNr,2) == -1)
-                {
-                    pinMode(Module.GetPeriphIOPort(SNr,2), INPUT);
-                    Serial.printf("setze %d auf INPUT\n\r", Module.GetPeriphIOPort(SNr,2));
-                }
-            #endif
+            if (Module.GetPeriphI2CPort(SNr,2) == -1)
+            {
+                pinMode(Module.GetPeriphIOPort(SNr,2), INPUT);
+                Serial.printf("setze %d auf INPUT\n\r", Module.GetPeriphIOPort(SNr,2));
+            }
         }
 
         if (Module.GetPeriphIOPort(SNr, 3) >= 0)     
         {
-            #ifndef ADC0
-                if (Module.GetPeriphI2CPort(SNr,3) == -1)
-                {
-                    pinMode(Module.GetPeriphIOPort(SNr,3), INPUT);
-                }
-            #endif
+            if (Module.GetPeriphI2CPort(SNr,3) == -1)
+            {
+                pinMode(Module.GetPeriphIOPort(SNr,3), INPUT);
+            }
         }
     }
     

@@ -62,23 +62,15 @@ void   MacCharToByte(uint8_t *mac, char *MAC);
 void   MacByteToChar(char *MAC, uint8_t *mac);
 bool   MACequals( uint8_t *MAC1, uint8_t *MAC2);
 
-#ifdef ESP32 
-    #include <esp_now.h>
-    #include <WiFi.h>
-    #include <nvs_flash.h>
-    #define u8 unsigned char
-    
-    void OnDataRecv(const esp_now_recv_info *info, const uint8_t* incomingData, int len);
-    void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status); 
-#elif defined(ESP8266)
-    #include <ESP8266WiFi.h>
-    #include <espnow.h>
+#include <esp_now.h>
+#include <WiFi.h>
+#include <nvs_flash.h>
+#define u8 unsigned char
 
-    void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len);
-    void OnDataSent(uint8_t *mac_addr, uint8_t sendStatus);
-#endif
+void OnDataRecv(const esp_now_recv_info *info, const uint8_t* incomingData, int len);
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status); 
 
-void   OnDataRecvCommon(const uint8_t * mac, const uint8_t *incomingData, int len);
+void OnDataRecvCommon(const uint8_t * mac, const uint8_t *incomingData, int len);
 
 #include <LinkedList.h>
 #include "Jeepify.h"

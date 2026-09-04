@@ -1,5 +1,5 @@
 //#define KILL_NVS 1
-//Version 3.53
+//Version 4.01
 
 #include <Arduino.h>
 #include <Module.h>
@@ -37,7 +37,6 @@ uint32_t WaitForContact = WAIT_AFTER_SLEEP;
 
 #if defined(PORT0) || defined(ADC0)
     #include <Wire.h>
-    //#include <Spi.h>
     #define I2C_FREQ 400000
     #ifdef ADC0
         #include <Adafruit_ADS1X15.h>
@@ -99,17 +98,12 @@ void setup()
    
     if (DEBUG_LEVEL > 0)
     {
-        #ifdef ESP32
-            Serial.begin(115200);
-        #elif defined(ESP8266)
-            Serial.begin(74880);
-        #endif
+        Serial.begin(115200);
     }
 
     #ifdef KILL_NVS
         nvs_flash_erase(); nvs_flash_init(); while (1) {};
     #endif
-
 
     InitSCL();
 
@@ -170,9 +164,6 @@ void setup()
 
     if (esp_now_init() != 0) 
         DEBUG_SYS ("Error initializing ESP-NOW\n\r");
-    #ifdef ESP8266
-        esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
-    #endif 
     
     esp_now_register_send_cb(OnDataSent);
     esp_now_register_recv_cb(OnDataRecv);    
@@ -303,7 +294,7 @@ void SendStatus (int Pos)
         jsondata = "";
         serializeJson(doc, jsondata);
 
-        if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), 250) == 0) 
+        if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()) == 0) 
         {
             //DEBUG3("ESP_OK\\r");  
         }
@@ -344,13 +335,13 @@ void SendPairingRequest()
         if (!Module.isPeriphEmpty(SNr)) 
         {
             snprintf(buf, sizeof(buf), "%d;%s", Module.GetPeriphType(SNr), Module.GetPeriphName(SNr));
-            doc[ArrPeriph[SNr]] = buf;
+            doc[ArrPeriph[SNr]] = String(buf);
 	    }
     }
          
     serializeJson(doc, jsondata);  
 
-    esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), 240);  
+    esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()); 
     
     DEBUG_MAX ("\nSending: %s\n\r", jsondata.c_str());                               
 }
@@ -380,7 +371,7 @@ void SendConfirm(const uint8_t * MAC, uint32_t TSConfirm)
 
     DEBUG_COM ("%lu: Sending Confirm (%lu) to: %s ", millis(), TSConfirm, FindPeerByMAC(MAC)->GetName()); 
             
-    if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), 200) == 0) 
+    if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()) == 0) 
     {
         DEBUG_MAX ("ESP_OK\n\r");  
     }
@@ -395,24 +386,37 @@ void SendConfirm(const uint8_t * MAC, uint32_t TSConfirm)
 }
 void SendReposts(int timer_ms)
 {
-    uint32_t actTime = millis();
+    uint32_t startTime = millis();
 
-    while (actTime + timer_ms < millis())
-    {
-        if (RepeatMessagesList.size() > 0)
-        { 
-                RepeatMessagesStruct *RMItem = RepeatMessagesList.get(0);
-                if (RMItem->TS + REPOST_TIMEOUT < actTime)
-                {
-                    esp_err_t result = esp_now_send(broadcastAddressAll, (uint8_t*) RMItem->Msg, 250);
-                            DEBUG_COM("ESPNOW: %d - %s\n\r", result, RMItem->Msg); 
-                }
-                RepeatMessagesList.shift();
-                //delete (RMItem);
+    // Laufe, solange Elemente da sind UND das Zeitlimit nicht überschritten ist
+    while ((RepeatMessagesList.size() > 0) && (millis() - startTime < (uint32_t)timer_ms))
+    { 
+        // 1. Holen Sie sich das erste Element (Index 0) AUS der Liste
+        RepeatMessagesStruct *RMItem = RepeatMessagesList.get(0);
+        
+        if (RMItem != NULL)
+        {
+            // Prüfen, ob der Timeout für dieses Paket abgelaufen ist
+            if (RMItem->TS + REPOST_TIMEOUT < millis())
+            {
+                // Sicher senden mit strlen() statt der harten 250!
+                esp_err_t result = esp_now_send(broadcastAddressAll, (uint8_t*) RMItem->Msg, strlen(RMItem->Msg));
+                DEBUG_COM("ESPNOW Repost: %d - %s\n\r", result, RMItem->Msg); 
             }
+            
+            // 2. Entfernen Sie den Listenknoten (verschiebt die restliche Liste nach vorn)
+            RepeatMessagesList.shift();
+            
+            // 3. SPEICHER-RETTUNG: Jetzt löschen wir das eigentliche Objekt aus dem RAM!
+            delete RMItem; 
         }
+        else
+        {
+            // Falls ein ungültiger NULL-Zeiger in der Liste war, einfach entfernen
+            RepeatMessagesList.shift();
+        }
+    }
 }
-
 #pragma endregion Send-Things
 #pragma region System-Things
 void ChangeBrightness(int B)
@@ -1247,13 +1251,14 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
 
             RepeatMessagesStruct *ToRepeat;
             ToRepeat = new RepeatMessagesStruct;
-            strcpy(ToRepeat->Msg, jsondata.c_str());
+            strncpy(ToRepeat->Msg, jsondata.c_str(), sizeof(ToRepeat->Msg) - 1);
+            ToRepeat->Msg[sizeof(ToRepeat->Msg) - 1] = '\0'; 
             ToRepeat->TS = _TS;
 
             if (RepeatMessagesList.size() >= MAX_REPEAT_MSG)            // Ältestes Element löschen, um Platz zu machen
             {
                 RepeatMessagesStruct *oldest = RepeatMessagesList.remove(0);
-                delete oldest;
+                if (oldest != NULL) delete oldest;
             }
 
             RepeatMessagesList.add(ToRepeat);
@@ -1324,8 +1329,8 @@ void loop()
             SetMessageLED(0);
     }
     
-    if ((Module.GetSleepMode()) and (!Module.GetPairMode()) and (actTime+100 - Module.GetLastContact() > WaitForContact))       
-    {
+    if ((Module.GetSleepMode()) and (!Module.GetPairMode()) and (actTime - Module.GetLastContact() > WaitForContact - 100))
+{
         DEBUG_COM ("actTime:%lu, LastContact:%lu - (actTime - Module.GetLastContact()) = %lu, WaitForContact = %lu, - Try to sleep...........................................................\n\r", actTime, Module.GetLastContact(), actTime - Module.GetLastContact(), WaitForContact);
         Module.SetLastContact(millis());
         GoToSleep();

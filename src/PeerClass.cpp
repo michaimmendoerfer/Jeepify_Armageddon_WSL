@@ -110,7 +110,9 @@ PeerClass::PeerClass()
     _Id = _ClassId;
     _ClassId++;
 
-    strcpy(_Name, "n.n.") ;
+    strncpy(_Name, "n.n.", sizeof(_Name) - 1);
+    _Name[sizeof(_Name) - 1] = '\0';
+
     _Type = 0;  
     _SleepMode = false;
     _DebugMode = false;
@@ -143,15 +145,13 @@ void  PeerClass::Setup(const char* Name, int Type, const char *Version, const ui
 
 char* PeerClass::Export() 
 {
-    char ReturnBufferPeriph[100];
-
     int UsedPeriph = 0;
-    for (int Si=0; Si<MAX_PERIPHERALS; Si++)
-    { 
+    for (int Si=0; Si<MAX_PERIPHERALS; Si++) { 
         if (Periph[Si].GetType() > 0) UsedPeriph++;
     } 
 
-    snprintf(ExportImportBuffer, sizeof(ExportImportBuffer), "%s;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d", 
+    // Ersten Teil schreiben und die Anzahl der geschriebenen Bytes merken
+    int written = snprintf(ExportImportBuffer, sizeof(ExportImportBuffer), "%s;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d", 
                         _Name, _Type, 
                         _BroadcastAddress[0], _BroadcastAddress[1], _BroadcastAddress[2],
                         _BroadcastAddress[3], _BroadcastAddress[4], _BroadcastAddress[5],
@@ -161,13 +161,22 @@ char* PeerClass::Export()
     { 
         if (Periph[Si].GetType() > 0) 
         {
-            snprintf(ReturnBufferPeriph, sizeof(ReturnBufferPeriph), ";%s;%d;%.3f;%.2f", Periph[Si].GetName(), Periph[Si].GetType(), Periph[Si].GetNullwert(), Periph[Si].GetVin());
-            strcat(ExportImportBuffer, ReturnBufferPeriph);
+            // Abbrechen, falls der Puffer voll ist oder kein Platz für ein weiteres Zeichen bleibt
+            if (written >= (int)sizeof(ExportImportBuffer) - 1) break;
+
+            // Schreibt direkt an das aktuelle Ende des Puffers unter Beachtung des Restplatzes
+            int res = snprintf(ExportImportBuffer + written, sizeof(ExportImportBuffer) - written, 
+                               ";%s;%d;%.3f;%.2f", 
+                               Periph[Si].GetName(), Periph[Si].GetType(), Periph[Si].GetNullwert(), Periph[Si].GetVin());
+            
+            if (res > 0) {
+                written += res;
+            }
         }
     }
-
     return ExportImportBuffer;
 }
+
 void PeerClass::Import(char *Buf) 
 {
     if (!Buf) return;
@@ -362,7 +371,7 @@ PeriphClass *FindNextPeriph(PeerClass *Peer, PeriphClass *Periph, int Type, bool
 {
     PeriphClass *TPeriph;
 
-    if ((PeriphList.size() == 0) || (Periph == NULL)) return NULL;
+    if (PeriphList.size() == 0) return NULL;
 
     int PeriphPos = -1;
     PeriphPos = FindPeriphListPos(Periph);
@@ -398,7 +407,7 @@ PeriphClass *FindPrevPeriph(PeerClass *Peer, PeriphClass *Periph, int Type, bool
 {
     PeriphClass *TPeriph;
 
-    if ((PeriphList.size() == 0) || (Periph == NULL)) return NULL;
+    if (PeriphList.size() == 0) return NULL;
     
     int PeriphPos = FindPeriphListPos(Periph);
     if (PeriphPos == -1) PeriphPos = PeriphList.size(); // if not found prev will start at last element

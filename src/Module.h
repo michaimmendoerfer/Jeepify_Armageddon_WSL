@@ -192,22 +192,6 @@ void InitModule();
 // Pin 0:   Pairing Button
 // Pin 8:   LED
 
-#ifdef MODULE_4WAY_ESP32_BIGGY
-   #define PAIRING_BUTTON       0
-    #define ADC0                0x48
-    #define PORT0               0x20
-    #define SDA_PIN             5
-    #define SCL_PIN             6
-    #define LED_PIN             2
-    #define LED_OFF             0
-    #define LED_ON              1
-    #define VOLTAGE_PIN         32
-    #define VOLTAGE_DEVIDER     4.5454
-    #define MODULE_NAME         "Biggy1"
-    #define BOARD_VOLTAGE       3.3
-    #define BOARD_ANALOG_MAX    4095
-#endif
-
 #ifdef MODULE_4WAY_INTEGRATED_8266
 // fertiges 4-Kanal mit ESP8266 (tut)
 // 4 Switches
