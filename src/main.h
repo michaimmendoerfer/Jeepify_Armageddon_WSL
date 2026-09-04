@@ -18,10 +18,17 @@ struct struct_Status {
   String    Msg;
   uint32_t  TSMsg;
 };
+struct ReceivedMessagesStruct_old {
+    uint8_t  From[6];
+    uint32_t TS;
+    uint32_t SaveTime;
+};
 struct ReceivedMessagesStruct {
     uint8_t  From[6];
     uint32_t TS;
     uint32_t SaveTime;
+
+    ~ReceivedMessagesStruct() = default; 
 };
 struct RepeatMessagesStruct {
     char Msg[260];
