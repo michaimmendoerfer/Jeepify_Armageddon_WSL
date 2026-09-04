@@ -213,9 +213,7 @@ void SendStatus (int Pos)
 {
     JsonDocument doc; 
     String jsondata; 
-    
     char buf[250]; 
-    
     char mac[13];
     MacByteToChar(mac, Module.GetBroadcastAddress());
     
@@ -225,6 +223,7 @@ void SendStatus (int Pos)
     if (Module.GetDemoMode())    bitSet(Status, 2);
     if (Module.GetPairMode())    bitSet(Status, 3);    
     
+    // Basis-Daten setzen
     doc[SEND_CMD_JSON_FROM]   = mac;
     doc[SEND_CMD_JSON_TO]     = broadCastAddressAllC;
     doc[SEND_CMD_JSON_TS]     = millis();
@@ -232,25 +231,22 @@ void SendStatus (int Pos)
     doc[SEND_CMD_JSON_STATUS] = Status;
     doc[SEND_CMD_JSON_ORDER]  = SEND_CMD_STATUS;
     
-    int SNrStart = lastPeriphSent+1;
+    int SNrStart = lastPeriphSent + 1;
     int SNrMax = MAX_PERIPHERALS;
-
-    //aktuell erfasste Periphs zum senden
     int PeriphsSent = 0; 
 
-    for (int SNr=SNrStart; SNr<SNrMax ; SNr++) 
+    for (int SNr = SNrStart; SNr < SNrMax; SNr++) 
     {   
         if (!Module.isPeriphEmpty(SNr))
         {
             if (Module.isPeriphSwitch(SNr))
             {
-                
-                DEBUG_MAX ("SendStatus(%d) - %s (Switch): %.0f\n\r",SNr, Module.GetPeriphName(SNr), Module.GetPeriphValue(SNr, 0));
+                DEBUG_MAX("SendStatus(%d) - %s (Switch): %.0f\n\r", SNr, Module.GetPeriphName(SNr), Module.GetPeriphValue(SNr, 0));
             }
             if (Module.GetPeriphIOPort(SNr, 2) > -1)
-                Module.SetPeriphValue(SNr, ReadVolt(SNr),      2);
+                Module.SetPeriphValue(SNr, ReadVolt(SNr), 2);
             if (Module.GetPeriphIOPort(SNr, 3) > -1)
-                Module.SetPeriphValue(SNr, ReadAmp(SNr),       3);
+                Module.SetPeriphValue(SNr, ReadAmp(SNr), 3);
             
             char FormatedValue2[10] = "0";
             char FormatedValue3[10] = "0";
@@ -258,8 +254,8 @@ void SendStatus (int Pos)
             if (Module.GetPeriphValue(SNr, 3)) snprintf(FormatedValue3, sizeof(FormatedValue3), "%.2f", Module.GetPeriphValue(SNr, 3));
             
             snprintf(buf, sizeof(buf), "%d;%s;%.0f;%.0f;%s;%s", 
-                Module.GetPeriphType(SNr),   //-----------------------weg
-                Module.GetPeriphName(SNr),   //---------------------weg
+                Module.GetPeriphType(SNr),
+                Module.GetPeriphName(SNr),
                 Module.GetPeriphValue(SNr, 0),
                 Module.GetPeriphValue(SNr, 1),
                 FormatedValue2,
@@ -267,41 +263,44 @@ void SendStatus (int Pos)
             
             doc[ArrPeriph[SNr]] = String(buf);
 
+            // Prüfen, ob dieses Element das Paket sprengen würde
             if (measureJson(doc) > 240)
             {
-                // wieder löschen, PeriphSent nicht erhöhen, LastPeriphSent nicht anpassen
+                // Element wieder entfernen, da zu groß für dieses Paket
                 doc.remove(ArrPeriph[SNr]);
-                break;
+                
+                // WICHTIG: Breche nicht komplett ab, sondern sende das bisherige Paket JETZT
+                break; 
             }    
             else
             {
-                // passt noch rein, PeriphSent erhöhen, LastPeriphSent anpassen
+                // Es passt, wir merken uns diese Position als erfolgreich verpackt
                 lastPeriphSent = SNr;
                 PeriphsSent++;
             }
         }
     }
-    if (lastPeriphSent == MAX_PERIPHERALS-1) 
-    {
-        lastPeriphSent = -1;
-        TSSend = millis();
-    }
 
+    // Wenn Elemente zum Senden bereitstehen, jetzt abschicken
     if (PeriphsSent > 0)
     {
         SetMessageLED(2);
-
         jsondata = "";
         serializeJson(doc, jsondata);
 
-        if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()) == 0) 
+        if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()) != 0) 
         {
-            //DEBUG3("ESP_OK\\r");  
+            DEBUG_COM("ESP_ERROR (SendStatus-2)\n\r"); 
         }
-        else 
-        {
-            DEBUG_COM ("ESP_ERROR (SendStatus-2)\n\r"); 
-        }
+    }
+
+    // Wenn wir am Ende des Arrays angekommen sind, setzen wir den Counter zurück
+    // und erst JETZT erlauben wir das Warten auf das nächste reguläre MSG_INTERVAL
+    if (lastPeriphSent >= MAX_PERIPHERALS - 1) 
+    {
+        lastPeriphSent = -1;
+        TSSend = millis(); // Setzt den Timer für den nächsten loop()-Intervall zurück
+        GarbageMessages();
     }
 }
 void SendPairingRequest() 
@@ -1040,7 +1039,8 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                         WaitForContact = WAIT_ALIVE; 
                         DEBUG_SYS ("LastContact: %6lu\n\r", Module.GetLastContact());
                         if (JX(SEND_CMD_JSON_PAIRING))
-                        { if (doc[SEND_CMD_JSON_PAIRING] == "aktiv") 
+                        { 
+                            if (doc[SEND_CMD_JSON_PAIRING] == "aktiv") 
                             { 
                                 Module.SetPairMode(true); 
                                 TSPair = millis();    
@@ -1051,8 +1051,8 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                                 #endif
                             }
                         }
-            MacFromS = (String) doc[SEND_CMD_JSON_FROM];
-                        break;
+                        MacFromS = (String) doc[SEND_CMD_JSON_FROM]; // unnötig?
+                        break; // Break sitzt wieder an der richtigen Stelle
                     case SEND_CMD_SLEEPMODE_ON:
                         AddStatus("Sleep: on");  
                         SetSleepMode(true);  
@@ -1291,6 +1291,8 @@ void loop()
         SendReposts(150);
     #endif
 
+    GarbageMessages();
+    
     if ((actTime - TSLastWiFi) > WAIT_FOR_WIFI)                                   // check WiFi-Connection
     {
         ESP.restart();
@@ -1304,7 +1306,6 @@ void loop()
             SendPairingRequest();
         }
         else SendStatus();
-        GarbageMessages();
     }
     
     if ((actTime - TSCheckRel ) > RELAY_CHECK )                                   // Check Relay-State
