@@ -150,7 +150,10 @@ void setup()
         String SavedModule   = preferences.getString("Module", "");
             DEBUG_SYS ("Importiere Modul: %s\n\r", SavedModule.c_str());
             char ToImport[250];
-            strcpy(ToImport,SavedModule.c_str());
+            
+            strncpy(ToImport, SavedModule.c_str(), sizeof(ToImport) - 1);
+            ToImport[sizeof(ToImport) - 1] = '\0';
+            
             if (strcmp(ToImport, "") != 0) Module.Import(ToImport);
         preferences.end();
     }
@@ -260,8 +263,8 @@ void SendStatus (int Pos)
             
             char FormatedValue2[10] = "0";
             char FormatedValue3[10] = "0";
-            if (Module.GetPeriphValue(SNr, 2)) sprintf(FormatedValue2, "%.2f", Module.GetPeriphValue(SNr, 2));
-            if (Module.GetPeriphValue(SNr, 3)) sprintf(FormatedValue3, "%.2f", Module.GetPeriphValue(SNr, 3));
+            if (Module.GetPeriphValue(SNr, 2)) snprintf(FormatedValue2, sizeof(FormatedValue2), "%.2f", Module.GetPeriphValue(SNr, 2));
+            if (Module.GetPeriphValue(SNr, 3)) snprintf(FormatedValue3, sizeof(FormatedValue3), "%.2f", Module.GetPeriphValue(SNr, 3));
             
             snprintf(buf, sizeof(buf), "%d;%s;%.0f;%.0f;%s;%s", 
                 Module.GetPeriphType(SNr),   //-----------------------weg
@@ -271,7 +274,7 @@ void SendStatus (int Pos)
                 FormatedValue2,
                 FormatedValue3);
             
-            doc[ArrPeriph[SNr]] = buf;
+            doc[ArrPeriph[SNr]] = String(buf);
 
             if (MeasureJson(doc) > 240)
             {
