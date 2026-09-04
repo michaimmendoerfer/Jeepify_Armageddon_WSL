@@ -18,8 +18,7 @@ const int DEBUG_LVL_HW  = 1;
 #define WAIT_AFTER_SLEEP  3*1000
 #define RELAY_CHECK       100
 #define AMP_SAMPLES       3
-
-bool KillNVS = true;
+#define MAX_REPEAT_MSG    30
 
 uint32_t WaitForContact = WAIT_AFTER_SLEEP;
 
@@ -1225,7 +1224,7 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
 
         //weitersenden (TTL-1)
         _TTL--;
-        if (_TTL >0)
+        if (_TTL > 0)
         {
             doc[SEND_CMD_JSON_TTL] = _TTL;
 
@@ -1235,6 +1234,13 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
             ToRepeat = new RepeatMessagesStruct;
             strcpy(ToRepeat->Msg, jsondata.c_str());
             ToRepeat->TS = _TS;
+
+            if (RepeatMessagesList.size() >= MAX_REPEAT_MSG)            // Ältestes Element löschen, um Platz zu machen
+            {
+                RepeatMessagesStruct *oldest = RepeatMessagesList.remove(0);
+                delete oldest;
+            }
+
             RepeatMessagesList.add(ToRepeat);
         }
     } // end (!error)
@@ -1243,18 +1249,11 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
           DEBUG1 ("deserializeJson failed: %s\n\r", error.c_str());
     }
 }
-#ifdef ESP32 
 void OnDataRecv(const esp_now_recv_info *info, const uint8_t* incomingData, int len)
 {
     OnDataRecvCommon(info->src_addr, incomingData, len);
 }
-#elif defined(ESP8266)
-void OnDataRecv(uint8_t * mac, uint8_t *incomingData, uint8_t len) 
-{
-    OnDataRecvCommon(mac, incomingData, len);
-}
-#endif
-#ifdef ESP32 //void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) 
+
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) 
 { 
     //if (DEBUG_LEVEL > 2) 
@@ -1263,15 +1262,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
     if (DEBUG_LEVEL > 0)  
         if (status != ESP_NOW_SEND_SUCCESS) Serial.println("\r\nLast Packet Send Status: Delivery Fail");
 }
-#elif defined(ESP8266)
-void OnDataSent(uint8_t *mac_addr, uint8_t sendStatus) {
-  if (DEBUG_LEVEL > 2) 
-        if (sendStatus == 0) Serial.println("\r\nLast Packet Send Status: Delivery Success");
-        
-    if (DEBUG_LEVEL > 0)  
-        if (sendStatus != 0) Serial.println("\r\nLast Packet Send Status: Delivery Fail");
-}
-#endif
+
 #pragma endregion ESP-Things
 void loop()
 {
