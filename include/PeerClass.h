@@ -57,7 +57,7 @@ class PeriphClass {
                     float Nullwert, float VperAmp, float Vin, int PeerId);
         void  Setup(const char* Name, int Type, int PeerId);
         
-        bool  SetName(const char* Name) { strcpy(_Name, Name); return true; }
+        bool  SetName(const char* Name) { strncpy(_Name, Name, sizeof(_Name) - 1); _Name[sizeof(_Name) - 1] = '\0'; return true; }
         char *GetName(){ return (_Name); }
         int   GetId() { return _Id; }
         void  SetId(int Id) { _Id = Id; }
@@ -127,9 +127,9 @@ class PeerClass
         char* Export();
         void  Import(char *Buf);
 
-        void  SetName(const char *Name) { strcpy(_Name, Name); }
+        void  SetName(const char *Name) { strncpy(_Name, Name, sizeof(_Name) - 1); _Name[sizeof(_Name) - 1] = '\0'; }
         char *GetName() { return (_Name); }
-        void  SetVersion(const char *Version) { strcpy(_Version, Version); }
+        void  SetVersion(const char *Version) { strncpy(_Version, Version, sizeof(_Version) - 1); _Version[sizeof(_Version) - 1] = '\0'; }
         char *GetVersion() { return (_Version); }
         int   GetId() { return _Id; }
         void  SetId(int Id) { _Id = Id; }
