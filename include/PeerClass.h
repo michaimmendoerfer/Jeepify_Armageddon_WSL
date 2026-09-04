@@ -76,7 +76,7 @@ class PeriphClass {
         void  SetVperAmp(float VperAmp) { _VperAmp = VperAmp; }
         float GetVin() { return _Vin; }
         void  SetVin(float Vin) { _Vin = Vin; }
-        float GetValue(int i=0) { return _Value[i]; }
+        float GetValue(int i=0) { if (i > 3 || i < 0) return -1; else return _Value[i]; }
         void  SetValue(float Value, int i=0) { _Value[i] = Value; }
         float GetOldValue(int i=0) { return _OldValue[i]; }
         void  SetOldValue(float OldValue, int i=0) { _OldValue[i] = OldValue; }
