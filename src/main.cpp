@@ -1,5 +1,5 @@
 //#define KILL_NVS 1
-//Version 3.52
+//Version 3.53
 
 #include <Arduino.h>
 #include <Module.h>
@@ -54,10 +54,10 @@ uint32_t WaitForContact = WAIT_AFTER_SLEEP;
             PCF8575 IOBoard1 (PORT1, SDA_PIN, SCL_PIN); 
         #endif
         #ifdef PORT2
-            PCF8575 IOBoard2 (PORT1, SDA_PIN, SCL_PIN); 
+            PCF8575 IOBoard2 (PORT2, SDA_PIN, SCL_PIN); 
         #endif
         #ifdef PORT3
-            PCF8575 IOBoard3 (PORT1, SDA_PIN, SCL_PIN); 
+            PCF8575 IOBoard3 (PORT3, SDA_PIN, SCL_PIN); 
         #endif
     #endif
 #endif
