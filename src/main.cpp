@@ -271,16 +271,18 @@ void SendStatus (int Pos)
                 FormatedValue2,
                 FormatedValue3);
             
-            if (MeasureJson(doc) + strlen(buf) > 240)
+            doc[ArrPeriph[SNr]] = buf;
+
+            if (MeasureJson(doc) > 240)
             {
-                // nichts hinzufügen, PeriphSent nicht erhöhen, LastPeriphSent nicht anpassen
+                // wieder löschen, PeriphSent nicht erhöhen, LastPeriphSent nicht anpassen
+                doc.remove(ArrPeriph[SNr]);
                 break;
             }    
             else
             {
                 // passt noch rein, PeriphSent erhöhen, LastPeriphSent anpassen
                 lastPeriphSent = SNr;
-                doc[ArrPeriph[SNr]] = buf;
                 PeriphsSent++;
             }
         }
