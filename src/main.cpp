@@ -276,7 +276,7 @@ void SendStatus (int Pos)
             
             doc[ArrPeriph[SNr]] = String(buf);
 
-            if (MeasureJson(doc) > 240)
+            if (measureJson(doc) > 240)
             {
                 // wieder löschen, PeriphSent nicht erhöhen, LastPeriphSent nicht anpassen
                 doc.remove(ArrPeriph[SNr]);
@@ -665,7 +665,8 @@ void GetModule()
         DEBUG_SYS("GetModule(): getString = %s\n\r", ImportStringPeer.c_str());
         
         char ToImport[250];
-        strcpy(ToImport,ImportStringPeer.c_str());
+        strncpy(ToImport, ImportStringPeer.c_str(), sizeof(ToImport) - 1);
+        ToImport[sizeof(ToImport) - 1] = '\0';
         DEBUG_SYS("ToImport = %s\r\n", ToImport);
     
         if (strcmp(ToImport, "") != 0) Module.Import(ToImport);
@@ -772,8 +773,6 @@ void VoltageCalibration(int SNr, float V)
 {
     //realVoltage durch anpassung von vin... realV = messwert/vin*VoltageDevider
     //                                       vin   = messwert/realV*VoltageDevider
-    char Buf[100] = {}; 
-  
     DEBUG_SYS("SNr %d: Volt-Messung kalibrieren... Port: %d, Type:%d\n\r", SNr, Module.GetPeriphIOPort(SNr, 2), Module.GetPeriphType(SNr));
     
     if (Module.GetPeriphType(SNr) == SENS_TYPE_VOLT) {

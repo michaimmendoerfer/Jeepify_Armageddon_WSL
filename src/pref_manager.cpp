@@ -17,7 +17,7 @@ void   PrintMAC(const uint8_t * mac_addr);
 
 MultiMonitorClass Screen[MULTI_SCREENS];
 
-char ScreenExportImportBuffer[300];
+char ScreenExportImportBuffer[1000];
 
 int  MultiMonitorClass::_ClassId = 1;
 
@@ -54,7 +54,7 @@ char* MultiMonitorClass::Export()
 
     return ScreenExportImportBuffer;
 }
-void MultiMonitorClass::Import(char *Buf) 
+void OLDMultiMonitorClass::Import(char *Buf) 
 // import from Buf with "Name;PeriphId0;PeriphId1;PeriphId2;PeriphId3"
 {
     strcpy(_Name, strtok(Buf, ";"));
@@ -77,6 +77,50 @@ void MultiMonitorClass::Import(char *Buf)
     }
 
 }
+void MultiMonitorClass::Import(char *Buf) 
+{
+    if (!Buf) return;
+    
+    char *token = strtok(Buf, ";");
+    if (token != NULL) {
+        strncpy(_Name, token, sizeof(_Name) - 1);
+        _Name[sizeof(_Name) - 1] = '\0';
+    }
+    
+    for (int Si = 0; Si < PERIPH_PER_SCREEN; Si++)
+    {  
+        char *nextTok = strtok(NULL, ";");
+        if (!nextTok) {
+            _PeriphId[Si] = -1; // Abbrechen/Absichern, falls String zu kurz
+        } else {
+            _PeriphId[Si] = atoi(nextTok);
+        }
+
+        if (_PeriphId[Si] > 0)
+        {
+            _Periph[Si] = FindPeriphById(_PeriphId[Si]);
+            
+            // HIER: Der lebenswichtige Schutz vor dem Boot-Crash
+            if (_Periph[Si] != NULL) {
+                _PeerId[Si] = _Periph[Si]->GetPeerId();
+                _Peer[Si]   = FindPeerById(_PeerId[Si]);
+            } else {
+                // Peripherie existiert nicht (z.B. ID gelöscht oder geändert)
+                _Periph[Si]   = NULL;
+                _PeerId[Si]   = -1;
+                _Peer[Si]     = NULL;
+                _PeriphId[Si] = -1;
+            }
+        }
+        else
+        {
+            _Periph[Si]   = NULL;
+            _PeerId[Si]   = 0;
+            _Peer[Si]     = NULL;
+        }
+    }
+}
+
 void SavePeers() 
 // writes [Peer-0] - [Name;Type;BroadcastAddress[0-5];SleepMode;DebugMode;DemoMode;Periph0Name;Periph0Type;Periph0Pos;Periph0PeerId...]
 {
