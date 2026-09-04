@@ -241,10 +241,11 @@ void SendStatus (int Pos)
     int SNrStart = lastPeriphSent+1;
     int SNrMax = MAX_PERIPHERALS;
 
-    int PeriphsSent = 0;
+    //aktuell erfasste Periphs zum senden
+    int PeriphsSent = 0; 
+
     for (int SNr=SNrStart; SNr<SNrMax ; SNr++) 
     {   
-        lastPeriphSent = SNr;
         if (!Module.isPeriphEmpty(SNr))
         {
             if (Module.isPeriphSwitch(SNr))
@@ -269,13 +270,19 @@ void SendStatus (int Pos)
                 Module.GetPeriphValue(SNr, 1),
                 FormatedValue2,
                 FormatedValue3);
-                        
-            doc[ArrPeriph[SNr]] = buf;
-            PeriphsSent++;
-
-            //send first Periphs
-            jsondata = "";
-            if (serializeJson(doc, jsondata) > 240) break;
+            
+            if (MeasureJson(doc) + strlen(buf) > 240)
+            {
+                // nichts hinzufügen, PeriphSent nicht erhöhen, LastPeriphSent nicht anpassen
+                break;
+            }    
+            else
+            {
+                // passt noch rein, PeriphSent erhöhen, LastPeriphSent anpassen
+                lastPeriphSent = SNr;
+                doc[ArrPeriph[SNr]] = buf;
+                PeriphsSent++;
+            }
         }
     }
     if (lastPeriphSent == MAX_PERIPHERALS-1) 
@@ -287,6 +294,10 @@ void SendStatus (int Pos)
     if (PeriphsSent > 0)
     {
         SetMessageLED(2);
+
+        jsondata = "";
+        serializeJson(doc, jsondata);
+
         if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), 250) == 0) 
         {
             //DEBUG3("ESP_OK\\r");  
