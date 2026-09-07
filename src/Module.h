@@ -3,9 +3,9 @@
 
 #include "Jeepify.h"
 
-//#define MODULE_JL_BATTERY_SENSOR      // (tut)
+#define MODULE_JL_BATTERY_SENSOR      // (tut)
 //#define MODULE_SENSORDRAGON_V1_0
-#define MODULE_SENSIBLEDRAGON_V1_2
+//#define MODULE_SENSIBLEDRAGON_V1_2
 //#define MODULE_POWERDRAGON4_V1_0
 //#define MODULE_1WAY_C6
 //#define MODULE_4_TAILED_FIRINGDRAGON_V1_0
@@ -18,7 +18,7 @@
 
 void InitModule();
 
-#define MODULE_VERSION          "4.50"  
+#define MODULE_VERSION          "4.60"  
 #define PROTOKOLL_VERSION       "3.10"
 
 #ifdef MODULE_JL_BATTERY_SENSOR // locked
@@ -34,8 +34,8 @@ void InitModule();
 
     #define ADC_USED            0x48
     #define PAIRING_BUTTON      9
-    #define RGBLED_PIN          8
-    #define LED_PIN             10
+    //#define RGBLED_PIN          8
+    #define LED_PIN             BUILTIN_LED
     #define LED_OFF             0
     #define LED_ON              1
     #define SDA_PIN             5
@@ -43,7 +43,7 @@ void InitModule();
     #define VOLTAGE_PIN         1 //3
     #define VOLTAGE_DEVIDER_V   5.0
     #define VOLTAGE_DEVIDER_A   1.0
-    #define MODULE_NAME         "JL_BAT"
+    #define MODULE_NAME         "JL_B4"
     #define BOARD_VOLTAGE       3.3
     #define BOARD_ANALOG_MAX    4095
 #endif
