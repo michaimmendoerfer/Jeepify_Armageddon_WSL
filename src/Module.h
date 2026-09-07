@@ -35,7 +35,7 @@ void InitModule();
     #define ADC_USED            0x48
     #define PAIRING_BUTTON      9
     //#define RGBLED_PIN          8
-    #define LED_PIN             BUILTIN_LED
+    #define LED_PIN             10
     #define LED_OFF             0
     #define LED_ON              1
     #define SDA_PIN             5
@@ -43,7 +43,7 @@ void InitModule();
     #define VOLTAGE_PIN         1 //3
     #define VOLTAGE_DEVIDER_V   5.0
     #define VOLTAGE_DEVIDER_A   1.0
-    #define MODULE_NAME         "JL_B4"
+    #define MODULE_NAME         "JLB41"
     #define BOARD_VOLTAGE       3.3
     #define BOARD_ANALOG_MAX    4095
 #endif

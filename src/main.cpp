@@ -211,12 +211,14 @@ void GarbageMessages()
 }
 void SendStatus (int Pos) 
 {
+    TSSend = millis(); // Setzt den Timer für den nächsten loop()-Intervall zurück
     JsonDocument doc; 
     String jsondata; 
     char buf[250]; 
     char mac[13];
     MacByteToChar(mac, Module.GetBroadcastAddress());
-    
+    DEBUG3("Sendstatus...\n\r");
+
     int Status = 0;
     if (Module.GetDebugMode())   bitSet(Status, 0);
     if (Module.GetSleepMode())   bitSet(Status, 1);
@@ -231,14 +233,18 @@ void SendStatus (int Pos)
     doc[SEND_CMD_JSON_STATUS] = Status;
     doc[SEND_CMD_JSON_ORDER]  = SEND_CMD_STATUS;
     
+    if (lastPeriphSent == MAX_PERIPHERALS - 1) lastPeriphSent = -1; // Reset, wenn wir am Ende angekommen sind
+
     int SNrStart = lastPeriphSent + 1;
     int SNrMax = MAX_PERIPHERALS;
     int PeriphsSent = 0; 
 
     for (int SNr = SNrStart; SNr < SNrMax; SNr++) 
     {   
+        DEBUG3("SNr: %u: %u\n\r", SNr, Module.isPeriphEmpty(SNr));
         if (!Module.isPeriphEmpty(SNr))
         {
+            DEBUG3("Periph:%u nicht leer\n\r", SNr);
             if (Module.isPeriphSwitch(SNr))
             {
                 DEBUG_MAX("SendStatus(%d) - %s (Switch): %.0f\n\r", SNr, Module.GetPeriphName(SNr), Module.GetPeriphValue(SNr, 0));
@@ -262,9 +268,9 @@ void SendStatus (int Pos)
                 FormatedValue3);
             
             doc[ArrPeriph[SNr]] = String(buf);
-
+            DEBUG3("zu JSON dazu: %s, JSON jetzt %u lang\n\r", buf, measureJson(doc));
             // Prüfen, ob dieses Element das Paket sprengen würde
-            if (measureJson(doc) > 240)
+            if (measureJson(doc) > 245)
             {
                 // Element wieder entfernen, da zu groß für dieses Paket
                 doc.remove(ArrPeriph[SNr]);
@@ -279,6 +285,10 @@ void SendStatus (int Pos)
                 PeriphsSent++;
             }
         }
+        else
+        {
+            lastPeriphSent = SNr;
+        }
     }
 
     // Wenn Elemente zum Senden bereitstehen, jetzt abschicken
@@ -287,20 +297,12 @@ void SendStatus (int Pos)
         SetMessageLED(2);
         jsondata = "";
         serializeJson(doc, jsondata);
+        DEBUG3("sende: %s\n\r", jsondata.c_str());
 
         if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()) != 0) 
         {
             DEBUG_COM("ESP_ERROR (SendStatus-2)\n\r"); 
         }
-    }
-
-    // Wenn wir am Ende des Arrays angekommen sind, setzen wir den Counter zurück
-    // und erst JETZT erlauben wir das Warten auf das nächste reguläre MSG_INTERVAL
-    if (lastPeriphSent >= MAX_PERIPHERALS - 1) 
-    {
-        lastPeriphSent = -1;
-        TSSend = millis(); // Setzt den Timer für den nächsten loop()-Intervall zurück
-        GarbageMessages();
     }
 }
 void SendPairingRequest() 
@@ -1293,10 +1295,10 @@ void loop()
 
     GarbageMessages();
     
-    if ((actTime - TSLastWiFi) > WAIT_FOR_WIFI)                                   // check WiFi-Connection
+    /*if ((actTime - TSLastWiFi) > WAIT_FOR_WIFI)                                   // check WiFi-Connection
     {
         ESP.restart();
-    }
+    }*/
     
     if ((actTime - TSSend ) > MSG_INTERVAL)                                       // Send-interval (Message or Pairing-request)
     {
