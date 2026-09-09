@@ -42,6 +42,7 @@ float  ReadAmp (int SNr);
 float  ReadVolt(int SNr);
 void   SendStatus (int Pos=-1);
 void   SendPairingRequest();
+void   SendAlert(char *msg);
 
 bool   GetRelayState(int SNr);
 void   SetRelayState(int SNr, bool State);
@@ -58,8 +59,8 @@ void   AddStatus(String Msg);
 void   GoToSleep();
 void   SetMessageLED(int Color);
 void   LEDBlink(int Color, int n, uint8_t ms);
-void   MacCharToByte(uint8_t *mac, char *MAC);
-void   MacByteToChar(char *MAC, uint8_t *mac);
+void   MacCharToByte(uint8_t *mac, const char *MAC);
+char  *MacByteToChar(char *MAC, const uint8_t *mac);
 bool   MACequals( uint8_t *MAC1, uint8_t *MAC2);
 
 #include <esp_now.h>

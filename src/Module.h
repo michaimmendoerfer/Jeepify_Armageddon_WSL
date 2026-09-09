@@ -18,8 +18,8 @@
 
 void InitModule();
 
-#define MODULE_VERSION          "4.60"  
-#define PROTOKOLL_VERSION       "3.10"
+#define MODULE_VERSION          "4.70"  
+#define PROTOKOLL_VERSION       "3.11"
 
 #ifdef MODULE_JL_BATTERY_SENSOR // locked
     // JL-Battery-Sensor hinten (tut)
@@ -32,18 +32,19 @@ void InitModule();
     // Pin 8:   LED (RGB)
     // Pin 9:   Pairing Button
 
-    #define ADC_USED            0x48
+    #define ADC0                0x48
     #define PAIRING_BUTTON      9
     //#define RGBLED_PIN          8
     #define LED_PIN             10
+    #define LED_ONBOARD         8
     #define LED_OFF             0
     #define LED_ON              1
-    #define SDA_PIN             5
-    #define SCL_PIN             6
+    #define SDA_PIN             20
+    #define SCL_PIN             21
     #define VOLTAGE_PIN         1 //3
     #define VOLTAGE_DEVIDER_V   5.0
     #define VOLTAGE_DEVIDER_A   1.0
-    #define MODULE_NAME         "JLB41"
+    #define MODULE_NAME         "JLBTST"
     #define BOARD_VOLTAGE       3.3
     #define BOARD_ANALOG_MAX    4095
 #endif

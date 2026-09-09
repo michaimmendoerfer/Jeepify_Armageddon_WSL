@@ -100,7 +100,8 @@ void setup()
     {
         Serial.begin(115200);
     }
-
+    delay(5000);
+    Serial.println("Setup!");
     #ifdef KILL_NVS
         nvs_flash_erase(); nvs_flash_init(); while (1) {};
     #endif
@@ -217,7 +218,10 @@ void SendStatus (int Pos)
     char buf[250]; 
     char mac[13];
     MacByteToChar(mac, Module.GetBroadcastAddress());
+
     DEBUG3("Sendstatus...\n\r");
+    Serial.print("Free heap: ");
+    Serial.println(ESP.getFreeHeap());
 
     int Status = 0;
     if (Module.GetDebugMode())   bitSet(Status, 0);
@@ -227,7 +231,7 @@ void SendStatus (int Pos)
     
     // Basis-Daten setzen
     doc[SEND_CMD_JSON_FROM]   = mac;
-    doc[SEND_CMD_JSON_TO]     = broadCastAddressAllC;
+    doc[SEND_CMD_JSON_TO]     = "X";
     doc[SEND_CMD_JSON_TS]     = millis();
     doc[SEND_CMD_JSON_TTL]    = SEND_CMD_MSG_TTL;
     doc[SEND_CMD_JSON_STATUS] = Status;
@@ -241,10 +245,8 @@ void SendStatus (int Pos)
 
     for (int SNr = SNrStart; SNr < SNrMax; SNr++) 
     {   
-        DEBUG3("SNr: %u: %u\n\r", SNr, Module.isPeriphEmpty(SNr));
         if (!Module.isPeriphEmpty(SNr))
         {
-            DEBUG3("Periph:%u nicht leer\n\r", SNr);
             if (Module.isPeriphSwitch(SNr))
             {
                 DEBUG_MAX("SendStatus(%d) - %s (Switch): %.0f\n\r", SNr, Module.GetPeriphName(SNr), Module.GetPeriphValue(SNr, 0));
@@ -268,7 +270,6 @@ void SendStatus (int Pos)
                 FormatedValue3);
             
             doc[ArrPeriph[SNr]] = String(buf);
-            DEBUG3("zu JSON dazu: %s, JSON jetzt %u lang\n\r", buf, measureJson(doc));
             // Prüfen, ob dieses Element das Paket sprengen würde
             if (measureJson(doc) > 245)
             {
@@ -315,7 +316,7 @@ void SendPairingRequest()
 
     MacByteToChar(mac, Module.GetBroadcastAddress());
     doc[SEND_CMD_JSON_FROM]  = mac;
-    doc[SEND_CMD_JSON_TO]    = broadCastAddressAllC;
+    doc[SEND_CMD_JSON_TO]    = "X";
     doc[SEND_CMD_JSON_TS]    = (uint32_t) millis();
     doc[SEND_CMD_JSON_TTL]   = SEND_CMD_MSG_TTL;
     
@@ -339,12 +340,17 @@ void SendPairingRequest()
             doc[ArrPeriph[SNr]] = String(buf);
 	    }
     }
-         
-    serializeJson(doc, jsondata);  
-
-    esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()); 
-    
-    DEBUG_MAX ("\nSending: %s\n\r", jsondata.c_str());                               
+    if (measureJson(doc) > 245) 
+    {
+        DEBUG_COM("Pairing-Request zu groß, bitte reduzieren Sie die Anzahl der Peripherien!\n\r");
+        SendAlert("Pairing-JSON-overflow !!!");
+    }
+    else
+    {
+        serializeJson(doc, jsondata);  
+        esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()); 
+        DEBUG_MAX ("\nSending: %s\n\r", jsondata.c_str());    
+    }                           
 }
 void SendConfirm(const uint8_t * MAC, uint32_t TSConfirm) 
 {
@@ -384,6 +390,37 @@ void SendConfirm(const uint8_t * MAC, uint32_t TSConfirm)
     DEBUG_COM ("%s", jsondata.c_str());
     
     AddStatus("Send Confirm...");                                     
+}
+void SendAlert(char *msg) 
+{
+    JsonDocument doc; 
+    String jsondata; 
+    char mac[13];
+    MacByteToChar(mac, Module.GetBroadcastAddress());
+    
+    int Status = 0;
+    if (Module.GetDebugMode())   bitSet(Status, 0);
+    if (Module.GetSleepMode())   bitSet(Status, 1);
+    if (Module.GetDemoMode())    bitSet(Status, 2);
+    if (Module.GetPairMode())    bitSet(Status, 3);    
+    
+    // Basis-Daten setzen
+    doc[SEND_CMD_JSON_FROM]   = mac;
+    doc[SEND_CMD_JSON_TO]     = "X";
+    doc[SEND_CMD_JSON_TS]     = millis();
+    doc[SEND_CMD_JSON_TTL]    = SEND_CMD_MSG_TTL;
+    doc[SEND_CMD_JSON_STATUS] = Status;
+    doc[SEND_CMD_JSON_ORDER]  = SEND_CMD_ALERT;
+    doc[SEND_CMD_JSON_VALUE]  = String(msg);
+           
+    jsondata = "";
+    serializeJson(doc, jsondata);
+    DEBUG3("sende: %s\n\r", jsondata.c_str());
+
+    if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()) != 0) 
+    {
+        DEBUG_COM("ESP_ERROR (SendStatus-2)\n\r"); 
+    }
 }
 void SendReposts(int timer_ms)
 {
@@ -684,7 +721,7 @@ void SetMessageLED(int Color)
 {
     // 0-off, 1-Red, 2-Green, 3-Blue, 4=violett
 
-    #if defined(LED_PIN) || defined(RGBLED_PIN)    
+    #if defined(LED_PIN) || defined(RGBLED_PIN) || defined (LED_ONBOARD) || defined(MODULE_TERMINATOR_PRO)
         if (_LED_SIGNAL) 
         switch (Color)
         {
@@ -698,6 +735,9 @@ void SetMessageLED(int Color)
                     #endif
                     #ifdef LED_PIN
                         digitalWrite(LED_PIN, LED_OFF);
+                    #endif
+                    #ifdef LED_ONBOARD
+                        digitalWrite(LED_ONBOARD, LED_ON);
                     #endif
                 #endif
                 break;
@@ -713,6 +753,9 @@ void SetMessageLED(int Color)
                     #ifdef LED_PIN
                         digitalWrite(LED_PIN, LED_ON);
                     #endif
+                    #ifdef LED_ONBOARD
+                        digitalWrite(LED_ONBOARD, LED_OFF);
+                    #endif
                 #endif
                 break;
             case 2:
@@ -726,6 +769,9 @@ void SetMessageLED(int Color)
                     #endif
                     #ifdef LED_PIN
                         digitalWrite(LED_PIN, LED_ON);
+                    #endif
+                    #ifdef LED_ONBOARD
+                        digitalWrite(LED_ONBOARD, LED_OFF);
                     #endif
                 #endif
                 break;
@@ -741,6 +787,9 @@ void SetMessageLED(int Color)
                     #ifdef LED_PIN
                         digitalWrite(LED_PIN, LED_ON);
                     #endif
+                    #ifdef LED_ONBOARD
+                        digitalWrite(LED_ONBOARD, LED_OFF);
+                    #endif
                 #endif
                 break;
             case 4:
@@ -754,6 +803,9 @@ void SetMessageLED(int Color)
                     #endif
                     #ifdef LED_PIN
                         digitalWrite(LED_PIN, LED_ON);
+                    #endif
+                    #ifdef LED_ONBOARD
+                        digitalWrite(LED_ONBOARD, LED_OFF);
                     #endif
                 #endif
                 break;  
@@ -893,7 +945,7 @@ float ReadVolt(int SNr)
     //realVoltage durch anpassung von vin... realV = messwert/vin*VoltageDevider
     if (Module.GetPeriphIOPort(SNr, 2) < 0) { DEBUG_SYS ("SNr=%d - no IOPort[2] - no volt-sensor!!!\n\r", SNr);  return 0; }
     
-    float TempVal = 0;
+    float TempVal  = 0;
     float TempVolt = 0;
     
     int ADC_Module = Module.GetPeriphI2CPort(SNr, 2);
@@ -1376,13 +1428,24 @@ void loop()
     #endif
 }
 
-void MacCharToByte(uint8_t *mac, char *MAC)
-{
-    sscanf(MAC, "%2x%2x%2x%2x%2x%2x", (unsigned int*) &mac[0], (unsigned int*) &mac[1], (unsigned int*) &mac[2], (unsigned int*) &mac[3], (unsigned int*) &mac[4], (unsigned int*) &mac[5]);
+void MacCharToByte(uint8_t *mac, const char *MAC) { 
+    if (strcmp(MAC, "X") == 0) { 
+        memset(mac, 0xFF, 6); 
+    } 
+    else
+    {
+        // sscanf gibt die Anzahl erfolgreich gelesener Elemente zurück
+        int parsed = sscanf(MAC, "%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx", 
+                     &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);               
+    }
 }
-void MacByteToChar(char *MAC, uint8_t *mac)
+char  *MacByteToChar(char *MAC, const uint8_t *mac)
 {
-    sprintf(MAC, "%2.2X%2.2X%2.2X%2.2X%2.2X%2.2X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    // snprintf verhindert das Überschreiben von Speicher über 13 Bytes hinaus
+    // 12 Zeichen für die MAC-Adresse + 1 Zeichen für das String-Ende '\0'
+    snprintf(MAC, 13, "%02X%02X%02X%02X%02X%02X", 
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    return MAC;
 }
 bool MACequals( uint8_t *MAC1, uint8_t *MAC2)
 {

@@ -6,12 +6,12 @@ extern MyLinkedList<PeriphClass*> SwitchList;
 extern MyLinkedList<PeriphClass*> SensorList;
 extern MyLinkedList<PeriphClass*> PeriphList;
 
-const char *ArrNullwert[MAX_PERIPHERALS] = {"NW0",  "NW1",  "NW2",  "NW3",  "NW4",  "NW5",  "NW6",  "NW7",  "NW8"};
-const char *ArrRaw[MAX_PERIPHERALS]      = {"Raw0", "Raw1", "Raw2", "Raw3", "Raw4", "Raw5", "Raw6", "Raw7", "Raw8"};
+const char *ArrNullwert[MAX_PERIPHERALS] = {"N0",  "N1",  "N2",  "N3",  "N4",  "N5",  "N6",  "N7",  "N8"};
+const char *ArrRaw[MAX_PERIPHERALS]      = {"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8"};
 const char *ArrRawVolt[MAX_PERIPHERALS]  = {"RaV0", "RaV1", "RaV2", "RaV3", "RaV4", "RaV5", "RaV6", "RaV7", "RaV8"};
 const char *ArrVperAmp[MAX_PERIPHERALS]  = {"VpA0", "VpA1", "VpA2", "VpA3", "VpA4", "VpA5", "VpA6", "VpA7", "VpA8"};
 const char *ArrVin[MAX_PERIPHERALS]      = {"Vin0", "Vin1", "Vin2", "Vin3", "Vin4", "Vin5", "Vin6", "Vin7", "Vin8"};
-const char *ArrPeriph[MAX_PERIPHERALS]   = {"Per0", "Per1", "Per2", "Per3", "Per4", "Per5", "Per6", "Per7", "Per8"};
+const char *ArrPeriph[MAX_PERIPHERALS]   = {"P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"};
 
 void InitModule()
 {   
@@ -163,8 +163,6 @@ void InitModule()
     { 
         if (Module.GetPeriphIOPort(SNr, 0) >= 0) 
         {
-            int PORT_Module = Module.GetPeriphI2CPort(SNr,0);
-            
             #ifdef PORT0
                 if (PORT_Module >= 0) IOBoard[PORT_Module]->pinMode(Module.GetPeriphIOPort(SNr, 0), OUTPUT);
             #else
@@ -174,7 +172,6 @@ void InitModule()
 
         if (Module.GetPeriphIOPort(SNr, 1) >= 0) 
         {
-            int PORT_Module = Module.GetPeriphI2CPort(SNr,1);
             #ifdef PORT0
                 if (PORT_Module >= 0) IOBoard[PORT_Module]->pinMode(Module.GetPeriphIOPort(SNr, 1), OUTPUT);
             #else
@@ -206,6 +203,10 @@ void InitModule()
     
     #ifdef LED_PIN
         pinMode(LED_PIN, OUTPUT);
+    #endif
+
+    #ifdef LED_ONBOARD
+        pinMode(LED_ONBOARD, OUTPUT);
     #endif
     
     #ifdef RGBLED_PIN
