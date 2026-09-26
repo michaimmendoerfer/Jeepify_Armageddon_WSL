@@ -1,6 +1,6 @@
 /*
 include PeerList and PeriphList
-Version 3.32
+Version 3.40
 */
 
 #ifndef PEERCLASS_H
@@ -25,6 +25,10 @@ Version 3.32
 #define V_VOLT     2
 #define V_AMP      3
 
+#define S_Input    0    
+#define S_Output   1
+#define S_Bidirect 2
+
 class PeriphClass {
     static int  _ClassId;
 
@@ -32,6 +36,7 @@ class PeriphClass {
         char            _Name[20];
         int             _Id;
         int             _Type;       //1=Switch, 2=Amp, 3=Volt, 4=Switch/Amp, 5=LatchingRelay, 6=LatchingRelay/Amp
+        int             _PortDir;    //0=Input, 1=Output, 2=bidirectional
         int             _Pos;        //Periph 1..4.. from one peer
         bool            _i2c[4];     //
         int             _IOPort[4];  //on/off/volt/amp
@@ -63,6 +68,8 @@ class PeriphClass {
         void  SetId(int Id) { _Id = Id; }
         int   GetType() { return _Type; }
         void  SetType(int Type) { _Type = Type; }
+        int   GetPortDir() { return _PortDir; }
+        void  SetPortDir(int PortDir) { _PortDir = PortDir; }
         bool  IsType(int Type);
         int   GetPos() { return _Pos; }
         void  SetPos(int Pos) {_Pos = Pos; }
@@ -186,6 +193,9 @@ class PeerClass
         bool  PeriphChanged(int P) { return Periph[P].GetChanged(); }
         
         int   GetPeriphType(int P) { return Periph[P].GetType(); }
+
+        int SetPeriphPortDir(int P, int PortDir) { Periph[P].SetPortDir(PortDir); }
+        int GetPeriphPortDir(int P) { return Periph[P].GetPortDir(); }
         
         float GetPeriphVin(int P) { return Periph[P].GetVin(); }
         void  SetPeriphVin(int P, float Vin) { Periph[P].SetVin(Vin); }

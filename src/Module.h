@@ -21,6 +21,37 @@ void InitModule();
 #define MODULE_VERSION          "4.70"  
 #define PROTOKOLL_VERSION       "3.11"
 
+#ifdef MODULE_SENSIBLEDRAGON_V2_0 
+    // blue PCB SensibleDragon V2.0
+    // ESP32-C3 Mini 
+    // 4 AMP-Sensors (ACS712) 30A witth VMon
+    // 1 VOLT-Sensor (VoltageDevider 4.58333)
+    // Pin 10:    LED extern
+    // Pin 0:     Pairing Button
+    // Pin 1:     Voltage
+    // Pin 20/21: SDA/SCL I2C
+    // I2C 0x48:  ADS1115 
+    
+    #define ADC0                0x48
+    #define ADC1                0x49
+    #define PAIRING_BUTTON      0
+    #define LED_PIN             10
+    //#define RGBLED_PIN          8
+    #define LED_OFF             0
+    #define LED_ON              1
+    #define SDA_PIN             20
+    #define SCL_PIN             21
+    #define VOLTAGE_PIN         1
+    #define VOLTAGE_DEVIDER_V   4.829787 //18k-4,7k
+    #define VOLTAGE_DEVIDER_A   1.0
+    #define VOLTAGE_DEVIDER_AV  7.666666 //100k-15k
+    
+    #define MODULE_NAME         "JL_BA2"
+    #define BOARD_VOLTAGE       3.3
+    #define BOARD_ANALOG_MAX    4095
+    #define IS_REPEATER         1
+#endif
+
 #ifdef MODULE_JL_BATTERY_SENSOR // locked
     // JL-Battery-Sensor hinten (tut)
     // ESP32-C3 Mini Plus (RGB)

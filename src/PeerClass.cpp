@@ -1,4 +1,4 @@
-//Version 3.30
+//Version 3.40
 #include <Arduino.h>
 #include "PeerClass.h"
 #include "LinkedList.h"
@@ -26,6 +26,7 @@ PeriphClass::PeriphClass()
     _Name[sizeof(_Name) - 1] = '\0';
 
     _Type = 0;  
+    _PortDir = 2;  //bidirectional
     _Pos = 0;       
     for (int i=0; i<4; i++) _IOPort[i]  = -1;
     for (int i=0; i<4; i++) _I2CPort[i] = -1;
