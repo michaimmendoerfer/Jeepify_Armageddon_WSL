@@ -1,5 +1,5 @@
 //#define KILL_NVS 1
-//Version 4.01
+//Version 4.03
 
 #include <Arduino.h>
 #include <Module.h>
@@ -18,6 +18,7 @@ const int DEBUG_LVL_HW  = 1;
 #define WAIT_AFTER_SLEEP  3*1000
 #define RELAY_CHECK       100
 #define AMP_SAMPLES       3
+#define VOLT_SAMPLES      3
 #define MAX_REPEAT_MSG    30
 
 uint32_t WaitForContact = WAIT_AFTER_SLEEP;
@@ -72,6 +73,7 @@ struct_Status Status[MAX_STATUS];
 
 u_int8_t    broadcastAddressAll[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff}; 
 const char *broadCastAddressAllC   = "FFFFFFFFFFFF";
+char        AlarmBuffer[250];
 int         lastPeriphSent = -1;
 
 volatile uint32_t TSButton    = 0;
@@ -251,10 +253,29 @@ void SendStatus (int Pos)
             {
                 DEBUG_MAX("SendStatus(%d) - %s (Switch): %.0f\n\r", SNr, Module.GetPeriphName(SNr), Module.GetPeriphValue(SNr, 0));
             }
+
             if (Module.GetPeriphIOPort(SNr, 2) > -1)
+            {
                 Module.SetPeriphValue(SNr, ReadVolt(SNr), 2);
+                
+                if (Module.GetPeriphType(SNr) & P_IS_REVERSED)
+                    Module.SetPeriphValue(SNr, -Module.GetPeriphValue(SNr, 2), 2);
+                if (Module.GetPeriphType(SNr) & P_IS_INPUT)
+                    if (Module.GetPeriphValue(SNr, 2) < 0) Module.SetPeriphValue(SNr, 0, 2);
+                if (Module.GetPeriphType(SNr) & P_IS_OUTPUT)
+                    if (Module.GetPeriphValue(SNr, 2) > 0) Module.SetPeriphValue(SNr, 0, 2);
+            }
             if (Module.GetPeriphIOPort(SNr, 3) > -1)
+            {
                 Module.SetPeriphValue(SNr, ReadAmp(SNr), 3);
+
+                if (Module.GetPeriphType(SNr) & P_IS_REVERSED)
+                    Module.SetPeriphValue(SNr, -Module.GetPeriphValue(SNr, 3), 3);
+                if (Module.GetPeriphType(SNr) & P_IS_INPUT)
+                    if (Module.GetPeriphValue(SNr, 3) < 0) Module.SetPeriphValue(SNr, 0, 3);
+                if (Module.GetPeriphType(SNr) & P_IS_OUTPUT)
+                    if (Module.GetPeriphValue(SNr, 3) > 0) Module.SetPeriphValue(SNr, 0, 3);
+            }
             
             char FormatedValue2[10] = "0";
             char FormatedValue3[10] = "0";
@@ -520,123 +541,124 @@ void ToggleSwitch(int SNr, int State=2)
 }
 bool GetRelayState(int SNr)
 {
-    int _Type = Module.GetPeriphType(SNr);
-	if ((_Type == SENS_TYPE_LT) or (_Type == SENS_TYPE_LT_AMP))
-    {    
-        int ADC_Module = Module.GetPeriphI2CPort(SNr, 2);
-        
-        if (ADC_Module > -1)
-        {
-            #ifdef ADC0
-                //use ADC
-                float TempVal  = ADCBoard[ADC_Module].readADC_SingleEnded(Module.GetPeriphIOPort(SNr, 2));
-                float TempVolt = ADCBoard[ADC_Module].computeVolts(TempVal) * VOLTAGE_DEVIDER_V; 
-                DEBUG_HW ("Relaystate: SNr:%d - TempVal: %.2f - V:%.2f\n\r", SNr, TempVal, TempVolt);
-                if (TempVolt > 8) return true;
-            #else
-                DEBUG_HW ("Critical Config-Error ADC - Pos 1");
-            #endif
-        }
-        else
-        {
-            if (digitalRead(Module.GetPeriphIOPort(SNr, 2))) return true;
-        }
-    }
-    else if ((_Type == SENS_TYPE_SWITCH) or (_Type == SENS_TYPE_SW_AMP))
+    if (Module.isPeriphSwitch(SNr))
     {
-        int RawState = 0;
-        
-        int PORT_Module = Module.GetPeriphI2CPort(SNr,2);
-        if (PORT_Module > -1)
-        {
-            #if defined(PORT0) && defined(ADC0)
-                RawState = IOBoard[PORT_Module]->digitalRead(Module.GetPeriphIOPort(SNr, 0));
-                DEBUG_HW ("Relay(%d)-State = %d (IOBoard[PORT_Module]->DigitalRead of port %d)\n\r", SNr, RawState, Module.GetPeriphIOPort(SNr, 0));
-            #endif
-        }
-        else
-        {
-            RawState = digitalRead(Module.GetPeriphIOPort(SNr, 0));
-            DEBUG_HW ("Relay(%d)-State = %d (DigitalRead of port %d)\n\r", SNr, RawState, Module.GetPeriphIOPort(SNr, 0));
-        }
-        
-        if ((RawState == 0) and (Module.GetRelayType() == RELAY_REVERSED)) { return true; }
-        if ((RawState == 1) and (Module.GetRelayType() == RELAY_NORMAL))   { return true; }
-    }
-
-    return false;
-}
-void SetRelayState(int SNr, bool State)
-{
-	int _Type = Module.GetPeriphType(SNr);
-	        
-    if ((_Type == SENS_TYPE_SWITCH) or (_Type == SENS_TYPE_SW_AMP))
-    {
-        int PORT_Module = Module.GetPeriphI2CPort(SNr,0);
-        if (PORT_Module > -1)
-        {
-            #ifdef PORT0
-                if (Module.GetRelayType() == RELAY_NORMAL) 
-                {
-                    IOBoard[PORT_Module]->digitalWrite(Module.GetPeriphIOPort(SNr, 0), State);
-                    DEBUG_HW ("IOBoard[%u]->digitalWrite(Module.GetPeriphIOPort(%u, 0), %u)", PORT_Module, SNr, State);
-                }
-                else 
-                {
-                    IOBoard[PORT_Module]->digitalWrite(Module.GetPeriphIOPort(SNr, 0), !State);
-                    DEBUG_HW ("IOBoard[%u]->digitalWrite(Module.GetPeriphIOPort(%u, 0), %u)", PORT_Module, SNr, !State);
-                }
-            #endif
-        }
-        else
-        {
-            if (Module.GetRelayType() == RELAY_REVERSED) 
+        if (Module.isPeriphLatch(SNr))
+        {    
+            int ADC_Module = Module.GetPeriphI2CPort(SNr, 2);
+            
+            if (ADC_Module > -1)
             {
-                digitalWrite(Module.GetPeriphIOPort(SNr, 0), !State);
+                #ifdef ADC0
+                    //use ADC
+                    float TempVal  = ADCBoard[ADC_Module].readADC_SingleEnded(Module.GetPeriphIOPort(SNr, 2));
+                    float TempVolt = ADCBoard[ADC_Module].computeVolts(TempVal) * VOLTAGE_DEVIDER_V; 
+                    DEBUG_HW ("Relaystate: SNr:%d - TempVal: %.2f - V:%.2f\n\r", SNr, TempVal, TempVolt);
+                    if (TempVolt > 8) return true;
+                #else
+                    DEBUG_HW ("Critical Config-Error ADC - Pos 1");
+                #endif
             }
             else
             {
-                digitalWrite(Module.GetPeriphIOPort(SNr, 0), State);
-                DEBUG_HW ("Setze Port %d auf %d\n\r",Module.GetPeriphIOPort(SNr, 0), State);
+                if (digitalRead(Module.GetPeriphIOPort(SNr, 2))) return true;
             }
         }
+        else // no Latching relais
+        {
+            int RawState = 0;
+            
+            int PORT_Module = Module.GetPeriphI2CPort(SNr,2);
+            if (PORT_Module > -1)
+            {
+                #if defined(PORT0) && defined(ADC0)
+                    RawState = IOBoard[PORT_Module]->digitalRead(Module.GetPeriphIOPort(SNr, 0));
+                    DEBUG_HW ("Relay(%d)-State = %d (IOBoard[PORT_Module]->DigitalRead of port %d)\n\r", SNr, RawState, Module.GetPeriphIOPort(SNr, 0));
+                #endif
+            }
+            else
+            {
+                RawState = digitalRead(Module.GetPeriphIOPort(SNr, 0));
+                DEBUG_HW ("Relay(%d)-State = %d (DigitalRead of port %d)\n\r", SNr, RawState, Module.GetPeriphIOPort(SNr, 0));
+            }
+            
+            if ((RawState == 0) and (Module.GetRelayType() == RELAY_REVERSED)) { return true; }
+            if ((RawState == 1) and (Module.GetRelayType() == RELAY_NORMAL))   { return true; }
+        }
     }
-    if ((_Type == SENS_TYPE_LT) or (_Type == SENS_TYPE_LT_AMP))
+    return false;
+}
+void SetRelayState(int SNr, bool State)
+{	        
+    if (Module.isPeriphSwitch(SNr))
     {
-        int _Port;
-        int _PORT_Module;
-
-        if (State == false)
+        if (Module.isPeriphLatch(SNr))
         {
-            _Port = Module.GetPeriphIOPort(SNr, 0);
-            _PORT_Module = Module.GetPeriphI2CPort(SNr,0);
+            int _Port;
+            int _PORT_Module;
+
+            if (State == false)
+            {
+                _Port = Module.GetPeriphIOPort(SNr, 0);
+                _PORT_Module = Module.GetPeriphI2CPort(SNr,0);
+            }
+            else
+            {
+                _Port = Module.GetPeriphIOPort(SNr, 1);
+                _PORT_Module = Module.GetPeriphI2CPort(SNr,1);
+            }
+
+            if (_PORT_Module > -1)
+            {
+                #ifdef PORT0
+                    IOBoard[_PORT_Module]->digitalWrite(_Port, 1);
+                    DEBUG_HW ("Setze PCF%u:%u auf 1\n\r", _PORT_Module, _Port);
+                    delay(500);
+                    IOBoard[_PORT_Module]->digitalWrite(_Port, 0);
+                    DEBUG_HW ("Setze PCF%u:%u auf 0\n\r", _PORT_Module, _Port);
+                #endif
+            }
+            else
+            {
+                digitalWrite(_Port, 1);
+                DEBUG_HW ("Setze _Port:%d auf on\n\r", _Port);
+                delay(500); //evtl tiefer
+                digitalWrite(_Port, 0);
+                DEBUG_HW ("Setze _Port:%d auf off\n\r", _Port);
+            }
         }
         else
         {
-            _Port = Module.GetPeriphIOPort(SNr, 1);
-            _PORT_Module = Module.GetPeriphI2CPort(SNr,1);
+            int PORT_Module = Module.GetPeriphI2CPort(SNr,0);
+            if (PORT_Module > -1)
+            {
+                #ifdef PORT0
+                    if (Module.GetRelayType() == RELAY_NORMAL) 
+                    {
+                        IOBoard[PORT_Module]->digitalWrite(Module.GetPeriphIOPort(SNr, 0), State);
+                        DEBUG_HW ("IOBoard[%u]->digitalWrite(Module.GetPeriphIOPort(%u, 0), %u)", PORT_Module, SNr, State);
+                    }
+                    else 
+                    {
+                        IOBoard[PORT_Module]->digitalWrite(Module.GetPeriphIOPort(SNr, 0), !State);
+                        DEBUG_HW ("IOBoard[%u]->digitalWrite(Module.GetPeriphIOPort(%u, 0), %u)", PORT_Module, SNr, !State);
+                    }
+                #endif
+            }
+            else
+            {
+                if (Module.GetRelayType() == RELAY_REVERSED) 
+                {
+                    digitalWrite(Module.GetPeriphIOPort(SNr, 0), !State);
+                }
+                else
+                {
+                    digitalWrite(Module.GetPeriphIOPort(SNr, 0), State);
+                    DEBUG_HW ("Setze Port %d auf %d\n\r",Module.GetPeriphIOPort(SNr, 0), State);
+                }
+            }
         }
-
-        if (_PORT_Module > -1)
-        {
-            #ifdef PORT0
-                IOBoard[_PORT_Module]->digitalWrite(_Port, 1);
-                DEBUG_HW ("Setze PCF%u:%u auf 1\n\r", _PORT_Module, _Port);
-                delay(500);
-                IOBoard[_PORT_Module]->digitalWrite(_Port, 0);
-                DEBUG_HW ("Setze PCF%u:%u auf 0\n\r", _PORT_Module, _Port);
-            #endif
-        }
-        else
-        {
-            digitalWrite(_Port, 1);
-            DEBUG_HW ("Setze _Port:%d auf on\n\r", _Port);
-            delay(500); //evtl tiefer
-            digitalWrite(_Port, 0);
-            DEBUG_HW ("Setze _Port:%d auf off\n\r", _Port);
-        }
-    }
-    
+    }  
 }
 void PrintMAC(const uint8_t * mac_addr)
 {
@@ -832,7 +854,7 @@ void VoltageCalibration(int SNr, float V)
     //                                       vin   = messwert/realV*VoltageDevider
     DEBUG_SYS("SNr %d: Volt-Messung kalibrieren... Port: %d, Type:%d\n\r", SNr, Module.GetPeriphIOPort(SNr, 2), Module.GetPeriphType(SNr));
     
-    if (Module.GetPeriphType(SNr) == SENS_TYPE_VOLT) {
+    if (Module.isPeriphVolt(SNr)) {
         float TempRead = 0;
         float NewVin = 0;
 
@@ -860,8 +882,7 @@ void CurrentCalibration()
     char Buf[100] = {};
     
     for(int SNr=0; SNr<MAX_PERIPHERALS; SNr++) {
-        int _Type = Module.GetPeriphType(SNr);
-        if ((_Type == SENS_TYPE_AMP) or (_Type == SENS_TYPE_SW_AMP) or (_Type == SENS_TYPE_LT_AMP)) 
+        if (Module.isPeriphAmp(SNr)) 
         {
             float TempVolt = 0;
             
@@ -952,7 +973,7 @@ float ReadVolt(int SNr)
 
     float VoltSamples = 0;
 
-    for (int av=0; av<10; av++)
+    for (int av=0; av<VOLT_SAMPLES; av++)
     {
         if (ADC_Module > -1)
         {
@@ -980,10 +1001,45 @@ float ReadVolt(int SNr)
         VoltSamples += TempVolt;
     }
   
-    TempVolt = VoltSamples/10;
+    TempVolt = VoltSamples/VOLT_SAMPLES;
     DEBUG_SYS ("ReadVolt %d - %.2f\n\r", SNr, TempVolt);
 
     return TempVolt;
+}
+char *CheckAlarms()
+{
+    AlarmBuffer[0] = '\0';
+    char buf[50];
+    for (int SNr=0; SNr<MAX_PERIPHERALS; SNr++)
+    {
+        if (Module.GetPeriphValue(2) < Module.GetPeriphAlarmLow(SNr, 2))
+        {
+            snprintf(buf, sizeof(buf), "SNr %d: Alarm LOW: %.2f < %.2f\n\r", SNr, Module.GetPeriphValue(SNr, 2), Module.GetPeriphAlarmLow(SNr, 2));
+            strcat(AlarmBuffer, buf);
+        }
+        if (Module.GetPeriphValue(2) > Module.GetPeriphAlarmHigh(SNr, 2))
+        {
+            snprintf(buf, sizeof(buf), "SNr %d: Alarm HIGH: %.2f > %.2f\n\r", SNr, Module.GetPeriphValue(SNr, 2), Module.GetPeriphAlarmHigh(SNr, 2));
+            strcat(AlarmBuffer, buf);
+        }
+        if (Module.GetPeriphValue(3) < Module.GetPeriphAlarmLow(SNr, 3))
+        {
+            snprintf(buf, sizeof(buf), "SNr %d: Alarm LOW: %.2f < %.2f\n\r", SNr, Module.GetPeriphValue(SNr, 3), Module.GetPeriphAlarmLow(SNr, 3));
+            strcat(AlarmBuffer, buf);
+        }
+        if (Module.GetPeriphValue(3) > Module.GetPeriphAlarmHigh(SNr, 3))
+        {
+            snprintf(buf, sizeof(buf), "SNr %d: Alarm HIGH: %.2f > %.2f\n\r", SNr, Module.GetPeriphValue(SNr, 3), Module.GetPeriphAlarmHigh(SNr, 3));
+            strcat(AlarmBuffer, buf);
+        }
+
+        if (strcmp(AlarmBuffer, "") != 0)
+        {
+           DEBUG_SYS ("ALARM - GRENZEN ÜBERSCHRITTEN!!!\n\r%s", AlarmBuffer);
+           return AlarmBuffer;
+        }
+    }
+    return NULL;
 }
 #pragma endregion Data-Things
 #pragma region ESP-Things
@@ -1211,7 +1267,7 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                             NewVoltage = (float) doc[SEND_CMD_JSON_VALUE];
                             for (int SNr=0 ; SNr<MAX_PERIPHERALS; SNr++)
                             {
-                                if (Module.GetPeriphType(SNr) == SENS_TYPE_VOLT)
+                                if ((Module.isPeriphVolt(SNr) && (Module.GetPeriphIOPort(SNr, 2) == VOLTAGE_PIN)))
                                 { 
                                     VoltageCalibration(SNr, NewVoltage) ;
                                     break;
@@ -1346,6 +1402,12 @@ void loop()
     #endif
 
     GarbageMessages();
+
+
+    if (CheckAlarms()) 
+    {
+        SendAlert(AlarmBuffer);
+    }
     
     /*if ((actTime - TSLastWiFi) > WAIT_FOR_WIFI)                                   // check WiFi-Connection
     {

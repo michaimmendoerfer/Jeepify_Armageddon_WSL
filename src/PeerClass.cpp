@@ -12,7 +12,7 @@ MyLinkedList<PeriphClass*> PeriphList = MyLinkedList<PeriphClass*>();
 int  PeriphClass::_ClassId = 1;
 int  PeerClass::_ClassId   = 1;
 
-char ExportImportBuffer[300];
+char ExportImportBuffer[500];
 
 extern void PrintMAC(const uint8_t * mac_addr);
 
@@ -25,8 +25,7 @@ PeriphClass::PeriphClass()
     strncpy(_Name, "n.n.", sizeof(_Name) - 1);
     _Name[sizeof(_Name) - 1] = '\0';
 
-    _Type = 0;  
-    _Type_bit = P_IS_BIDIRECT;
+    _Type_bit = 0;
     _Pos = 0;       
     for (int i=0; i<4; i++) _IOPort[i]  = -1;
     for (int i=0; i<4; i++) _I2CPort[i] = -1;
@@ -36,6 +35,10 @@ PeriphClass::PeriphClass()
     _Vin = 0;
     for (int i=0; i<4; i++) _Value[i] = 0;
     for (int i=0; i<4; i++) _OldValue[i] = 0;
+    for (int i=0; i<4; i++) _AlarmLow[i] = -99999;
+    for (int i=0; i<4; i++) _AlarmHigh[i] = 99999;
+    for (int i=0; i<4; i++) _AlarmTriggered[i] = false;
+
     _Changed = false;
     _PeerId = 0;
     _SavedValueIndex = 0;
@@ -48,7 +51,7 @@ void  PeriphClass::Setup(const char* Name, int Type, bool isADS,
     strncpy(_Name, Name, sizeof(_Name) - 1);
     _Name[sizeof(_Name) - 1] = '\0';
 
-    _Type = Type;
+    _Type_bit = Type;
     
     _IOPort[0] = IOPort0;
     _IOPort[1] = IOPort1;
@@ -70,22 +73,22 @@ void  PeriphClass::Setup(const char* Name, int Type, int PeerId)
     strncpy(_Name, Name, sizeof(_Name) - 1);
     _Name[sizeof(_Name) - 1] = '\0'
     ;
-    _Type = Type;
+    _Type_bit = Type;
     _PeerId = PeerId;
 }
 
 bool PeriphClass::IsType(int Type)
 {
-    switch (Type_bit) { 
-                case SENS_TYPE_SENS:    return (_Type_bit & P_IS_SENSOR); break;
-                case SENS_TYPE_VOLT:    return (_Type_bit & P_IS_VOLT);   break;
-                case SENS_TYPE_AMP:     return (_Type_bit & P_IS_AMP);    break;
-                case SENS_TYPE_SW_ALL:  return (_Type_bit & P_IS_SWITCH); break;
-                case SENS_TYPE_SWITCH:  if  (_Type == SENS_TYPE_SWITCH)                            return true; break;
-                case SENS_TYPE_SW_AMP:  if  (_Type == SENS_TYPE_SW_AMP)                            return true; break;
-                case SENS_TYPE_LT_AMP:  if  (_Type == SENS_TYPE_LT_AMP)                            return true; break;
-                case SENS_TYPE_LT:      if  (_Type == SENS_TYPE_LT)                                return true; break;
-            }
+    switch (Type) 
+    { 
+        case SENS_TYPE_SENS:    return (IsSensor()); break;
+        case SENS_TYPE_VOLT:    return (IsVolt());   break;
+        case SENS_TYPE_AMP:     return (IsAmp());    break;
+        case SENS_TYPE_SWITCH:  return (IsSwitch()); break;
+        case SENS_TYPE_SW_AMP:  return (IsSwitch() && IsAmp()); break;
+        case SENS_TYPE_LT_AMP:  return (IsSwitch() && IsLatch() && IsAmp()); break;
+        case SENS_TYPE_LT:      return (IsSwitch() && IsLatch()); break;
+    }
     return false;
 }
 void PeriphClass::AddSavedValue(float V0, float V1, float V2, float V3)
@@ -163,8 +166,10 @@ char* PeerClass::Export()
 
             // Schreibt direkt an das aktuelle Ende des Puffers unter Beachtung des Restplatzes
             int res = snprintf(ExportImportBuffer + written, sizeof(ExportImportBuffer) - written, 
-                               ";%s;%d;%.3f;%.2f", 
-                               Periph[Si].GetName(), Periph[Si].GetType(), Periph[Si].GetNullwert(), Periph[Si].GetVin());
+                               ";%s;%d;%.3f;%.2f;%.2f;%.2f,%.2f,%.2f", 
+                               Periph[Si].GetName(), Periph[Si].GetType(), Periph[Si].GetNullwert(), Periph[Si].GetVin(), 
+                               Periph[Si].GetAlarmLow(2), Periph[Si].GetAlarmHigh(2),
+                               Periph[Si].GetAlarmLow(3), Periph[Si].GetAlarmHigh(3));
             
             if (res > 0) {
                 written += res;
@@ -209,7 +214,11 @@ void PeerClass::Import(char *Buf)
         GET_NEXT_TOKEN(); Periph[Si].SetType(atoi(token));
         GET_NEXT_TOKEN(); Periph[Si].SetNullwert(atof(token));
         GET_NEXT_TOKEN(); Periph[Si].SetVin(atof(token));
-        
+        GET_NEXT_TOKEN(); Periph[Si].SetAlarmLow(2, atof(token));
+        GET_NEXT_TOKEN(); Periph[Si].SetAlarmHigh(2, atof(token));
+        GET_NEXT_TOKEN(); Periph[Si].SetAlarmLow(3, atof(token));
+        GET_NEXT_TOKEN(); Periph[Si].SetAlarmHigh(3, atof(token));
+
         Periph[Si].SetPos(Si);
         Periph[Si].SetPeerId(_Id);
     }
@@ -436,26 +445,3 @@ PeriphClass *FindPrevPeriph(PeerClass *Peer, PeriphClass *Periph, int Type, bool
     return NULL;
 }
 #pragma endregion MAC-Things
-
-char *TypeInText(int Type)
-{
-    switch (Type)
-    {
-        case SENS_TYPE_VOLT:    return (char*) "Voltage-Sensor";
-        case SENS_TYPE_AMP:     return (char*) "Current-Sensor";
-        case SENS_TYPE_SWITCH:  return (char*) "Switch";
-        case SENS_TYPE_SW_AMP:  return (char*) "sensed Switch";
-        case SENS_TYPE_LT:      return (char*) "Switch";
-        case SENS_TYPE_LT_AMP:  return (char*) "sensed Switch";
-        case SWITCH_1_WAY:      return (char*) "1-way Switch";
-        case SWITCH_2_WAY:      return (char*) "2-Way Switch";
-        case SWITCH_4_WAY:      return (char*) "4-way Switch";
-        case SWITCH_8_WAY:      return (char*) "8-Way Switch";
-        case PDC:               return (char*) "Power distributor";
-        case PDC_SENSOR_MIX:    return (char*) "Mixed Device";
-        case BATTERY_SENSOR:    return (char*) "Battery-Sensor";
-        case MONITOR_ROUND:     return (char*) "Round Monitor";
-        case MONITOR_BIG:       return (char*) "3.5' Monitor";
-    }
-    return (char*) "not known";
-}
