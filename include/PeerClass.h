@@ -25,10 +25,6 @@ Version 3.40
 #define V_VOLT     2
 #define V_AMP      3
 
-#define S_Input    0    
-#define S_Output   1
-#define S_Bidirect 2
-
 class PeriphClass {
     static int  _ClassId;
 
@@ -36,7 +32,7 @@ class PeriphClass {
         char            _Name[20];
         int             _Id;
         int             _Type;       //1=Switch, 2=Amp, 3=Volt, 4=Switch/Amp, 5=LatchingRelay, 6=LatchingRelay/Amp
-        int             _PortDir;    //0=Input, 1=Output, 2=bidirectional
+        int             _Type_bit;
         int             _Pos;        //Periph 1..4.. from one peer
         bool            _i2c[4];     //
         int             _IOPort[4];  //on/off/volt/amp
@@ -66,10 +62,10 @@ class PeriphClass {
         char *GetName(){ return (_Name); }
         int   GetId() { return _Id; }
         void  SetId(int Id) { _Id = Id; }
-        int   GetType() { return _Type; }
+        int   GetType() { return _Type_bit; }
         void  SetType(int Type) { _Type = Type; }
-        int   GetPortDir() { return _PortDir; }
-        void  SetPortDir(int PortDir) { _PortDir = PortDir; }
+        int   GetTypeBit() { return _Type_bit; }
+        void  SetTypeBit(int BitToSet) { _Type_bit = _Type_bit | BitToSet; }
         bool  IsType(int Type);
         int   GetPos() { return _Pos; }
         void  SetPos(int Pos) {_Pos = Pos; }
@@ -92,11 +88,10 @@ class PeriphClass {
         void  SetChanged(bool Changed) { _Changed = Changed; }
         int   GetPeerId() { return _PeerId; }
         void  SetPeerId(int PeerId) { _PeerId = PeerId; }
-        bool  IsSensor() { return ((_Type == SENS_TYPE_VOLT) or (_Type == SENS_TYPE_AMP)); }
-        bool  IsSwitch() { return ((_Type == SENS_TYPE_SWITCH) or (_Type == SENS_TYPE_SW_AMP) or (_Type == SENS_TYPE_LT) or (_Type == SENS_TYPE_LT_AMP)); }
-        bool  IsCombo()  { return ((_Type == SENS_TYPE_SW_AMP) or (_Type == SENS_TYPE_LT_AMP)); }
-        bool  isEmpty() { return (_Type == 0); }
-        
+        bool  IsSensor() { return ((_Type_bit & P_IS_SENSOR) != 0); }
+        bool  IsSwitch() { return ((_Type_bit & P_IS_SWITCH) != 0); }
+        bool  IsCombo()  { return ((_Type_bit & P_IS_SWITCH) != 0) and ((_Type_bit & P_IS_SENSOR) != 0); }
+        bool  isEmpty() { return (_Type_bit == 0); }
         float GetSavedValue(int Index, int i) { return _SavedValue[Index][i]; }
         void  AddSavedValue(float V0, float V1, float V2, float V3);
         int   GetSavedValueIndex() { return _SavedValueIndex; }

@@ -26,7 +26,7 @@ PeriphClass::PeriphClass()
     _Name[sizeof(_Name) - 1] = '\0';
 
     _Type = 0;  
-    _PortDir = 2;  //bidirectional
+    _Type_bit = P_IS_BIDIRECT;
     _Pos = 0;       
     for (int i=0; i<4; i++) _IOPort[i]  = -1;
     for (int i=0; i<4; i++) _I2CPort[i] = -1;
@@ -76,15 +76,11 @@ void  PeriphClass::Setup(const char* Name, int Type, int PeerId)
 
 bool PeriphClass::IsType(int Type)
 {
-    switch (Type) { 
-                case SENS_TYPE_ALL:                                                                return true; break;
-                case SENS_TYPE_SENS:    if ((_Type == SENS_TYPE_VOLT) or (_Type == SENS_TYPE_AMP)) return true; break;
-                case SENS_TYPE_VOLT:    if  (_Type == SENS_TYPE_VOLT)                              return true; break;
-                case SENS_TYPE_AMP:     if  (_Type == SENS_TYPE_AMP)                               return true; break;
-                case SENS_TYPE_SW_ALL:  if ((_Type == SENS_TYPE_SWITCH) or
-                                            (_Type == SENS_TYPE_SW_AMP) or
-                                            (_Type == SENS_TYPE_LT)     or
-                                            (_Type == SENS_TYPE_LT_AMP))                           return true; break;
+    switch (Type_bit) { 
+                case SENS_TYPE_SENS:    return (_Type_bit & P_IS_SENSOR); break;
+                case SENS_TYPE_VOLT:    return (_Type_bit & P_IS_VOLT);   break;
+                case SENS_TYPE_AMP:     return (_Type_bit & P_IS_AMP);    break;
+                case SENS_TYPE_SW_ALL:  return (_Type_bit & P_IS_SWITCH); break;
                 case SENS_TYPE_SWITCH:  if  (_Type == SENS_TYPE_SWITCH)                            return true; break;
                 case SENS_TYPE_SW_AMP:  if  (_Type == SENS_TYPE_SW_AMP)                            return true; break;
                 case SENS_TYPE_LT_AMP:  if  (_Type == SENS_TYPE_LT_AMP)                            return true; break;
