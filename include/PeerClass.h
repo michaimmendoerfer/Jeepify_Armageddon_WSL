@@ -1,6 +1,6 @@
 /*
 include PeerList and PeriphList
-Version 3.40
+Version 3.41
 */
 
 #ifndef PEERCLASS_H
@@ -39,7 +39,7 @@ class PeriphClass {
         int             _I2CPort[4]; //corresponding i2c-channel
         float           _Nullwert;
         float           _VperAmp;
-        float           _Vin;
+        float           _VCorr;
         volatile float  _Value[4];   //switch/---/volt/amp
         float           _OldValue[4];
         float           _AlarmLow[4];
@@ -58,7 +58,7 @@ class PeriphClass {
         void  Setup(const char* Name, int Type, bool isADS, 
                     int I2CPort0, int I2CPort1, int I2CPort2, int I2CPort3, 
                     int IOPort0,  int IOPort1,  int IOPort2,  int IOPort3, 
-                    float Nullwert, float VperAmp, float Vin, int PeerId);
+                    float Nullwert, float VperAmp, float VCorr, int PeerId);
         void  Setup(const char* Name, int Type, int PeerId);
         
         bool  SetName(const char* Name) { strncpy(_Name, Name, sizeof(_Name) - 1); _Name[sizeof(_Name) - 1] = '\0'; return true; }
@@ -82,8 +82,8 @@ class PeriphClass {
         void  SetNullwert(float Nullwert) { _Nullwert = Nullwert; }
         float GetVperAmp() { return _VperAmp; }
         void  SetVperAmp(float VperAmp) { _VperAmp = VperAmp; }
-        float GetVin() { return _Vin; }
-        void  SetVin(float Vin) { _Vin = Vin; }
+        float GetVCorr() { return _VCorr; }
+        void  SetVCorr(float VCorr) { _VCorr = VCorr; }
         float GetValue(int i=0) { if (i > 3 || i < 0) return -1; else return _Value[i]; }
         void  SetValue(float Value, int i=0) { _Value[i] = Value; }
         float GetOldValue(int i=0) { return _OldValue[i]; }
@@ -178,7 +178,7 @@ class PeerClass
         void  PeriphSetup(int Pos, const char* Name, int Type, 
                           int I2CPort0, int I2CPort1, int I2CPort2, int I2CPort3, 
                           int IOPort0, int IOPort1, int IOPort2, int IOPort3,  
-                          float Nullwert, float VperAmp, float Vin, int PeerId);
+                          float Nullwert, float VperAmp, float VCorr, int PeerId);
         void  PeriphSetup(int Pos, const char* Name, int Type, int PeerId);
         
         char *GetPeriphName(int P) { return Periph[P].GetName(); }
@@ -203,8 +203,8 @@ class PeerClass
         
         int   GetPeriphType(int P) { return Periph[P].GetType(); }
 
-        float GetPeriphVin(int P) { return Periph[P].GetVin(); }
-        void  SetPeriphVin(int P, float Vin) { Periph[P].SetVin(Vin); }
+        float GetPeriphVCorr(int P) { return Periph[P].GetVCorr(); }
+        void  SetPeriphVCorr(int P, float VCorr) { Periph[P].SetVCorr(VCorr); }
         
         float GetPeriphVperAmp(int P){ return Periph[P].GetVperAmp(); }
         void  SetPeriphVperAmp(int P, float VperAmp) { return Periph[P].SetVperAmp(VperAmp); }

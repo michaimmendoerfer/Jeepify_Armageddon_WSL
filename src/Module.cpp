@@ -16,6 +16,24 @@ const char *ArrPeriph[MAX_PERIPHERALS]   = {"P0", "P1", "P2", "P3", "P4", "P5", 
 void InitModule()
 {   
     //------------------------------------------------------------------------------------------------------------------------------
+    //----------------------------------------------- MODULE_SENSIBLEDRAGON_V2_0 ---------------------------------------------------
+    //----------------------------------------------- -------------------------- ---------------------------------------------------
+    //------------------------------------------------------------------------------------------------------------------------------
+    
+    #ifdef MODULE_SENSIBLEDRAGON_V2_0           
+        #define SWITCHES_PER_SCREEN 4
+        //                Name        Type         Version        Address   sleep  debug  demo  pair  vMon RelayType       SCA      SCL      voltagedevier 
+        //Module.Setup(MODULE_NAME, BATTERY_SENSOR, MODULE_VERSION, NULL,     false, true, false, false, 4,  RELAY_NORMAL, SDA_PIN,  SCL_PIN, VOLTAGE_DEVIDER);
+        Module.Setup(MODULE_NAME, BATTERY_SENSOR, MODULE_VERSION, NULL,     false, true, false, false);
+        //                      Name     Type                   I2C                             IO(0/1) VOLT AMP                     NULL     VpA    VCorr  PeerID  
+        Module.PeriphSetup(0, "Load",   (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT),    -1, -1,  1,  0,    -1, -1, 0,  3,   2.5410,  0.040,  1,    0);
+        Module.PeriphSetup(1, "Extern", (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT),    -1, -1,  1,  0,    -1, -1, 1,  2,   2.4954,  0.066,  1,    0);
+        Module.PeriphSetup(2, "Solar",  (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT),    -1, -1,  1,  0,    -1, -1, 2,  1,   2.5005,  0.066,  1,    0);
+        Module.PeriphSetup(3, "Fridge", (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT),    -1, -1,  1,  0,    -1, -1, 3,  0,   2.5005,  0.066,  1,    0);
+        Module.PeriphSetup(4, "LiPo90", (           P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT),    -1, -1, -1, -1,    -1, -1, 1, -1,     0,    0,       1,    0);  
+    #endif
+    
+    //------------------------------------------------------------------------------------------------------------------------------
     //----------------------------------------------- MODULE_JL_BATTERY_SENSOR -----------------------------------------------------
     //----------------------------------------------- fertig - nicht mehr ändern ---------------------------------------------------
     //------------------------------------------------------------------------------------------------------------------------------

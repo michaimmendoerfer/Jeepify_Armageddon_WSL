@@ -3,7 +3,8 @@
 
 #include "Jeepify.h"
 
-#define MODULE_JL_BATTERY_SENSOR      // (tut)
+//#define MODULE_JL_BATTERY_SENSOR      // (tut)
+#define MODULE_SENSIBLEDRAGON_V2_0
 //#define MODULE_SENSORDRAGON_V1_0
 //#define MODULE_SENSIBLEDRAGON_V1_2
 //#define MODULE_POWERDRAGON4_V1_0
@@ -18,8 +19,8 @@
 
 void InitModule();
 
-#define MODULE_VERSION          "4.70"  
-#define PROTOKOLL_VERSION       "3.11"
+#define MODULE_VERSION          "4.80"  
+#define PROTOKOLL_VERSION       "4.0"
 
 #ifdef MODULE_SENSIBLEDRAGON_V2_0 
     // blue PCB SensibleDragon V2.0
@@ -42,10 +43,8 @@ void InitModule();
     #define SDA_PIN             20
     #define SCL_PIN             21
     #define VOLTAGE_PIN         1
-    #define VOLTAGE_DEVIDER_V   4.829787 //18k-4,7k
+    #define VOLTAGE_DEVIDER_V   7.666666 //100k-15k
     #define VOLTAGE_DEVIDER_A   1.0
-    #define VOLTAGE_DEVIDER_AV  7.666666 //100k-15k
-    
     #define MODULE_NAME         "JL_BA2"
     #define BOARD_VOLTAGE       3.3
     #define BOARD_ANALOG_MAX    4095

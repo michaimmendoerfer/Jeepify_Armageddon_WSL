@@ -254,7 +254,7 @@ void SendStatus (int Pos)
                 DEBUG_MAX("SendStatus(%d) - %s (Switch): %.0f\n\r", SNr, Module.GetPeriphName(SNr), Module.GetPeriphValue(SNr, 0));
             }
 
-            if (Module.GetPeriphIOPort(SNr, 2) > -1)
+            if (Module.isPeriphVolt(SNr))
             {
                 Module.SetPeriphValue(SNr, ReadVolt(SNr), 2);
                 
@@ -265,7 +265,7 @@ void SendStatus (int Pos)
                 if (Module.GetPeriphType(SNr) & P_IS_OUTPUT)
                     if (Module.GetPeriphValue(SNr, 2) > 0) Module.SetPeriphValue(SNr, 0, 2);
             }
-            if (Module.GetPeriphIOPort(SNr, 3) > -1)
+            if (Module.isPeriphAmp(SNr))
             {
                 Module.SetPeriphValue(SNr, ReadAmp(SNr), 3);
 
@@ -734,9 +734,6 @@ void GetModule()
         DEBUG_SYS("ToImport = %s\r\n", ToImport);
     
         if (strcmp(ToImport, "") != 0) Module.Import(ToImport);
-        
-        DEBUG_SYS("Module.Vin[4] = %.2f", Module.GetPeriphVin(4));
-
     preferences.end();
 }
 void SetMessageLED(int Color)
@@ -850,29 +847,20 @@ void LEDBlink(int Color, int n, uint8_t ms)
 #pragma region Data-Things
 void VoltageCalibration(int SNr, float V) 
 {
-    //realVoltage durch anpassung von vin... realV = messwert/vin*VoltageDevider
-    //                                       vin   = messwert/realV*VoltageDevider
+    //realVoltage durch anpassung von VCorr
     DEBUG_SYS("SNr %d: Volt-Messung kalibrieren... Port: %d, Type:%d\n\r", SNr, Module.GetPeriphIOPort(SNr, 2), Module.GetPeriphType(SNr));
     
     if (Module.isPeriphVolt(SNr)) {
-        float TempRead = 0;
-        float NewVin = 0;
-
-        for (int i=0; i<20; i++) 
-        {
-            TempRead += (float)analogRead(Module.GetPeriphIOPort(SNr, 2));
-            //delay(10);
-        }
-        TempRead = (float) TempRead / 20;
+        float TempVolt = ReadVolt(SNr);
         
-        DEBUG_SYS ("TempRead nach filter = %.2f (%.2fV)\n\r", TempRead, TempRead / Module.GetPeriphVin(SNr)*VOLTAGE_DEVIDER_V);
+        DEBUG_SYS ("TempVolt vor Calibration %.2f\n\r", TempVolt);
         DEBUG_SYS ("Eich-soll Volt: %.2f\n\r", V);
        
-        NewVin = TempRead / V * VOLTAGE_DEVIDER_V;
-        Module.SetPeriphVin(SNr, NewVin);        
-        DEBUG_SYS ("ausgelesen: NewVin = %.2f\n\r", Module.GetPeriphVin(SNr));
+        float NewVCorr = TempVolt / V;
+        Module.SetPeriphVCorr(SNr, NewVCorr);        
+        DEBUG_SYS ("ausgelesen: NewVCorr = %.2f\n\r", Module.GetPeriphVCorr(SNr));
         
-        DEBUG_SYS ("S[%d].Vin = %.2f - volt after calibration: %.2fV\n\r", SNr, Module.GetPeriphVin(SNr), TempRead/Module.GetPeriphVin(SNr)*VOLTAGE_DEVIDER_V);
+        DEBUG_SYS ("S[%d].VCorr = %.2f - volt after calibration: %.2fV\n\r", SNr, Module.GetPeriphVCorr(SNr), TempVolt*Module.GetPeriphVCorr(SNr));
         
         SaveModule();
     }
@@ -963,7 +951,7 @@ float ReadAmp (int SNr)
 }
 float ReadVolt(int SNr) 
 {
-    //realVoltage durch anpassung von vin... realV = messwert/vin*VoltageDevider
+    //realVoltage durch anpassung von VCorr... 
     if (Module.GetPeriphIOPort(SNr, 2) < 0) { DEBUG_SYS ("SNr=%d - no IOPort[2] - no volt-sensor!!!\n\r", SNr);  return 0; }
     
     float TempVal  = 0;
@@ -980,7 +968,7 @@ float ReadVolt(int SNr)
             #ifdef ADC0
                 //use ADC
                 TempVal  = ADCBoard[ADC_Module].readADC_SingleEnded(Module.GetPeriphIOPort(SNr, 2));
-                TempVolt = ADCBoard[ADC_Module].computeVolts(TempVal) * VOLTAGE_DEVIDER_V; 
+                TempVolt = ADCBoard[ADC_Module].computeVolts(TempVal) * VOLTAGE_DEVIDER_V * Module.GetPeriphVCorr(SNr); 
                 //delay(1);
             #else
                 DEBUG_SYS ("Critical Config-Error ADC");
@@ -989,13 +977,8 @@ float ReadVolt(int SNr)
         else
         {
             //use io
-            if (Module.GetPeriphVin(SNr) == 0) 
-            { 
-                //DEBUG_SYS ("SNr=%d - Vin must not be zero !!!\n\r", SNr); 
-                return 0; 
-            }
-            TempVolt = (float) analogRead(Module.GetPeriphIOPort(SNr, 2)) / Module.GetPeriphVin(SNr) * VOLTAGE_DEVIDER_V;
-            //delay(10);
+            TempVolt = (float) analogRead(Module.GetPeriphIOPort(SNr, 2)) / BOARD_ANALOG_MAX/BOARD_VOLTAGE * VOLTAGE_DEVIDER_V * Module.GetPeriphVCorr(SNr);
+            delay(5);
         }
 
         VoltSamples += TempVolt;
@@ -1049,8 +1032,6 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
     JsonDocument doc;
     String jsondata;
     int Pos = -1;
-    float  NewVperAmp  = 0;
-    float  NewVin      = 0;
     float  NewVoltage  = 0;
     float  NewNullwert = 0;
     String NewName     = "";
@@ -1261,18 +1242,13 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                         CurrentCalibration();
                         break;
                     case SEND_CMD_VOLTAGE_CALIB:
-                        if (JX(SEND_CMD_JSON_VALUE))
+                        if (JX(SEND_CMD_JSON_VALUE) and (JX(SEND_CMD_JSON_PERIPH_POS)))
                         {
                             AddStatus("VoltCalib beginnt");
                             NewVoltage = (float) doc[SEND_CMD_JSON_VALUE];
-                            for (int SNr=0 ; SNr<MAX_PERIPHERALS; SNr++)
-                            {
-                                if ((Module.isPeriphVolt(SNr) && (Module.GetPeriphIOPort(SNr, 2) == VOLTAGE_PIN)))
-                                { 
-                                    VoltageCalibration(SNr, NewVoltage) ;
-                                    break;
-                                }
-                            } 
+                            Pos  = (int) doc[SEND_CMD_JSON_PERIPH_POS];
+
+                            VoltageCalibration(Pos, NewVoltage) ;
                         }                
                         break;
                     case SEND_CMD_SWITCH_TOGGLE:
@@ -1297,33 +1273,6 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                             }
                             
                             SaveModule();
-                        }
-                        break;
-                    case SEND_CMD_UPDATE_VIN:
-                        if  ( JX(SEND_CMD_JSON_VALUE) and JX(SEND_CMD_JSON_PERIPH_POS) )
-                        {   
-                            NewVin = (float) doc[SEND_CMD_JSON_VALUE];
-                            Pos = (int) doc[SEND_CMD_JSON_PERIPH_POS];
-
-                            if (NewVin > 0)
-                            {
-                                Module.SetPeriphVin(Pos, NewVin);
-                                SaveModule();
-                            }
-                        }
-                        break;
-                    case SEND_CMD_UPDATE_VPERAMP:
-                        if  ( JX(SEND_CMD_JSON_VALUE) and JX(SEND_CMD_JSON_PERIPH_POS) )
-                        {
-                            Pos = (int) doc[SEND_CMD_JSON_PERIPH_POS];
-                            NewVperAmp = (float) doc[SEND_CMD_JSON_VALUE];
-
-                            if (NewVperAmp > 0)
-                            {
-                                Module.SetPeriphVperAmp(Pos, NewVperAmp);
-                                SaveModule();
-                                DEBUG_COM ("Updated VperAmp at Pos:%d to %.3f\n\r", Pos, NewVperAmp);
-                            }
                         }
                         break;
                     case SEND_CMD_UPDATE_NULLWERT:

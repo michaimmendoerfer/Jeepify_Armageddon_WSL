@@ -1,4 +1,4 @@
-//Version 3.40
+//Version 3.41
 #include <Arduino.h>
 #include "PeerClass.h"
 #include "LinkedList.h"
@@ -32,7 +32,8 @@ PeriphClass::PeriphClass()
     
     _Nullwert = 0;
     _VperAmp = 0;
-    _Vin = 0;
+    _VCorr = 1;
+
     for (int i=0; i<4; i++) _Value[i] = 0;
     for (int i=0; i<4; i++) _OldValue[i] = 0;
     for (int i=0; i<4; i++) _AlarmLow[i] = -99999;
@@ -46,7 +47,7 @@ PeriphClass::PeriphClass()
 void  PeriphClass::Setup(const char* Name, int Type, bool isADS, 
                          int I2CPort0, int I2CPort1, int I2CPort2, int I2CPort3, 
                          int IOPort0, int IOPort1, int IOPort2, int IOPort3,  
-                         float Nullwert, float VperAmp, float Vin, int PeerId)
+                         float Nullwert, float VperAmp, float VCorr, int PeerId)
 {
     strncpy(_Name, Name, sizeof(_Name) - 1);
     _Name[sizeof(_Name) - 1] = '\0';
@@ -65,7 +66,7 @@ void  PeriphClass::Setup(const char* Name, int Type, bool isADS,
 
     _Nullwert = Nullwert;
     _VperAmp = VperAmp;
-    _Vin = Vin;
+    _VCorr = VCorr;
     _PeerId = PeerId;
 }
 void  PeriphClass::Setup(const char* Name, int Type, int PeerId)
@@ -167,7 +168,7 @@ char* PeerClass::Export()
             // Schreibt direkt an das aktuelle Ende des Puffers unter Beachtung des Restplatzes
             int res = snprintf(ExportImportBuffer + written, sizeof(ExportImportBuffer) - written, 
                                ";%s;%d;%.3f;%.2f;%.2f;%.2f,%.2f,%.2f", 
-                               Periph[Si].GetName(), Periph[Si].GetType(), Periph[Si].GetNullwert(), Periph[Si].GetVin(), 
+                               Periph[Si].GetName(), Periph[Si].GetType(), Periph[Si].GetNullwert(), Periph[Si].GetVCorr(), 
                                Periph[Si].GetAlarmLow(2), Periph[Si].GetAlarmHigh(2),
                                Periph[Si].GetAlarmLow(3), Periph[Si].GetAlarmHigh(3));
             
@@ -213,7 +214,7 @@ void PeerClass::Import(char *Buf)
 
         GET_NEXT_TOKEN(); Periph[Si].SetType(atoi(token));
         GET_NEXT_TOKEN(); Periph[Si].SetNullwert(atof(token));
-        GET_NEXT_TOKEN(); Periph[Si].SetVin(atof(token));
+        GET_NEXT_TOKEN(); Periph[Si].SetVCorr(atof(token));
         GET_NEXT_TOKEN(); Periph[Si].SetAlarmLow(2, atof(token));
         GET_NEXT_TOKEN(); Periph[Si].SetAlarmHigh(2, atof(token));
         GET_NEXT_TOKEN(); Periph[Si].SetAlarmLow(3, atof(token));
@@ -228,9 +229,9 @@ void PeerClass::Import(char *Buf)
 void  PeerClass::PeriphSetup(int Pos, const char* Name, int Type, 
                              int I2CPort0, int I2CPort1, int I2CPort2, int I2CPort3, 
                              int IOPort0, int IOPort1, int IOPort2, int IOPort3, 
-                             float Nullwert, float VperAmp, float Vin, int PeerId)
+                             float Nullwert, float VperAmp, float VCorr, int PeerId)
 {
-    Periph[Pos].Setup(Name, Type, 0, I2CPort0, I2CPort1, I2CPort2, I2CPort3, IOPort0, IOPort1, IOPort2, IOPort3, Nullwert, VperAmp, Vin, PeerId);
+    Periph[Pos].Setup(Name, Type, 0, I2CPort0, I2CPort1, I2CPort2, I2CPort3, IOPort0, IOPort1, IOPort2, IOPort3, Nullwert, VperAmp, VCorr, PeerId);
 }
 
 void  PeerClass::PeriphSetup(int Pos, const char* Name, int Type, int PeerId)

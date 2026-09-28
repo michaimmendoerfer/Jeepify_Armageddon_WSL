@@ -15,17 +15,6 @@
 #define SEND_CMD_JSON_STATUS       "ST"
 #define SEND_CMD_JSON_FROM         "SND"
 #define SEND_CMD_JSON_TO           "RCV"
-#define SEND_CMD_MSG_TTL           2
-#define SEND_CMD_MSG_HOLD          10
-#define SEND_CMD_JSON_TTL          "TTL"
-#define SEND_CMD_JSON_NODE         "NOD"
-#define SEND_CMD_JSON_VERSION      "VER"
-#define SEND_CMD_JSON_MODULE_TYPE  "TYP"
-#define SEND_CMD_JSON_TS           "TS"
-#define SEND_CMD_JSON_CONFIRM      "CON"
-#define SEND_CMD_JSON_STATUS       "ST"
-#define SEND_CMD_JSON_FROM         "SND"
-#define SEND_CMD_JSON_TO           "RCV"
 #define SEND_CMD_JSON_ORDER        "O"
 #define SEND_CMD_JSON_VALUE        "V"
 #define SEND_CMD_JSON_PEER_NAME    "PeerName"
