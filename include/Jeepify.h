@@ -1,6 +1,6 @@
 #ifndef JEEPIFY_H
 #define JEEPIFY_H
-// Version 3.40
+// Version 3.41
 
 #include <Arduino.h>
 
@@ -9,6 +9,7 @@
 #define SEND_CMD_JSON_TTL          "TTL"
 #define SEND_CMD_JSON_NODE         "NOD"
 #define SEND_CMD_JSON_VERSION      "VER"
+#define SEND_CMD_JSON_PROTOCOL     "PTC"
 #define SEND_CMD_JSON_MODULE_TYPE  "TYP"
 #define SEND_CMD_JSON_TS           "TS"
 #define SEND_CMD_JSON_CONFIRM      "CON"

@@ -10,6 +10,7 @@ extern Preferences preferences;
 void   PrintMAC(const uint8_t * mac_addr);
 
 MultiMonitorClass Screen[MULTI_SCREENS];
+MultiMonitorClass MultiGaugeScreen;
 
 char ScreenExportImportBuffer[1000];
 
@@ -143,6 +144,16 @@ void SavePeers()
       Serial.printf("schreibe: [%s]: %s", Buf, ExportStringMulti.c_str());
       Serial.println();
     }
+
+    Serial.println("jetzt kommt MultiGaugeScreen");
+    snprintf(Buf, sizeof(Buf), "MGScreen");
+    
+    ExportStringMulti = String(MultiGaugeScreen.Export());
+
+    preferences.putString(Buf, ExportStringMulti);
+    Serial.printf("schreibe: [%s]: %s", Buf, ExportStringMulti.c_str());
+    Serial.println();
+
     preferences.end();
 }
 int  GetPeers() 
@@ -201,6 +212,21 @@ int  GetPeers()
             Screen[s].Import(ScreenExportImportBuffer);
         }
     }
+
+    Serial.println("importing MultiGaugeScreen:\n\r");
+    snprintf(Buf, sizeof(Buf), "MGScreen");
+
+    ImportStringMulti = preferences.getString(Buf, "");
+    if (ImportStringMulti != "") 
+    {   
+        Serial.printf("%s - %d Bytes gelesen: %s\n\r", Buf, sizeof(ImportStringMulti), ImportStringMulti.c_str());
+        strncpy(ScreenExportImportBuffer, ImportStringMulti.c_str(), sizeof(ScreenExportImportBuffer) - 1);
+        ScreenExportImportBuffer[sizeof(ScreenExportImportBuffer) - 1] = '\0';
+
+        Serial.println("jetzt kommt import");
+        MultiGaugeScreen.Import(ScreenExportImportBuffer);
+    }
+
     ReportAll();
     preferences.end();
 
@@ -221,6 +247,8 @@ void ClearPeers()
         snprintf(Buf, sizeof(Buf), "Screen-%d", s);
         preferences.remove(Buf);
     }
+    snprintf(Buf, sizeof(Buf), "MultiGaugeScreen");
+    preferences.remove(Buf);
 
     preferences.clear();
     Serial.println("JeepifyPeers cleared...");
@@ -252,6 +280,17 @@ void DeletePeer(PeerClass *P)
               Screen[s].SetChanged(true);
           }
       }
+    }
+    for (int Si=0; Si<PERIPH_PER_SCREEN; Si++)
+    {
+        if (MultiGaugeScreen.GetPeerId(Si) == P->GetId())
+        {
+            MultiGaugeScreen.SetPeerId(Si, -1);
+            MultiGaugeScreen.SetPeer(Si, NULL);
+            MultiGaugeScreen.SetPeriphId(Si, -1);
+            MultiGaugeScreen.SetPeriph(Si, NULL);
+            MultiGaugeScreen.SetChanged(true);
+        }
     }
 
     int PSize = PeriphList.size();
@@ -348,6 +387,21 @@ void ReportAll()
                 {
                     Serial.printf("    %d: [Nicht gefunden/NULL] at position %d\n\r", Screen[s].GetPeriphId(Si), Si);
                 }
+            }
+        }
+    }
+    for (int Si=0; Si<PERIPH_PER_SCREEN; Si++)
+    {
+        if (MultiGaugeScreen.GetPeriphId(Si) > -1)
+        {
+            PeriphClass *periphPtr = MultiGaugeScreen.GetPeriph(Si);
+            if (periphPtr != NULL) 
+            {
+                Serial.printf("    %d: %s(%d) at position %d\n\r", MultiGaugeScreen.GetPeriphId(Si), periphPtr->GetName(), periphPtr->GetType(), Si);
+            }
+            else 
+            {
+                Serial.printf("    %d: [Nicht gefunden/NULL] at position %d\n\r", MultiGaugeScreen.GetPeriphId(Si), Si);
             }
         }
     }
