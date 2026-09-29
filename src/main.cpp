@@ -447,6 +447,7 @@ void SendAlert(char *msg)
         DEBUG_COM("ESP_ERROR (SendStatus-2)\n\r"); 
     }
 }
+
 void SendReposts(int timer_ms)
 {
     uint32_t startTime = millis();
@@ -460,7 +461,7 @@ void SendReposts(int timer_ms)
         if (RMItem != NULL)
         {
             // Prüfen, ob der Timeout für dieses Paket abgelaufen ist
-            if (RMItem->TS + REPOST_TIMEOUT < millis())
+            if (millis() - RMItem->TS < REPOST_TIMEOUT)
             {
                 // Sicher senden mit strlen() statt der harten 250!
                 esp_err_t result = esp_now_send(broadcastAddressAll, (uint8_t*) RMItem->Msg, strlen(RMItem->Msg));
