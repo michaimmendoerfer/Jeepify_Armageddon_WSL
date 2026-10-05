@@ -34,7 +34,7 @@ void InitModule();
     // I2C 0x48:  ADS1115 
     
     #define ADC0                0x48
-    #define ADC1                0x49
+    //#define ADC1                0x49
     #define PAIRING_BUTTON      0
     #define LED_PIN             10
     //#define RGBLED_PIN          8

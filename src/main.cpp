@@ -970,11 +970,30 @@ float ReadVolt(int SNr)
     {
         if (ADC_Module > -1)
         {
+            #define TESTADC1
             #ifdef ADC0
                 //use ADC
-                TempVal  = ADCBoard[ADC_Module].readADC_SingleEnded(Module.GetPeriphIOPort(SNr, 2));
-                TempVolt = ADCBoard[ADC_Module].computeVolts(TempVal) * VOLTAGE_DEVIDER_V * Module.GetPeriphVCorr(SNr); 
-                //delay(1);
+                switch (ADC_Module)
+                {
+                    case 0: 
+                        TempVal  = ADCBoard[ADC_Module].readADC_SingleEnded(Module.GetPeriphIOPort(SNr, 2));
+                        TempVolt = ADCBoard[ADC_Module].computeVolts(TempVal) * VOLTAGE_DEVIDER_V * Module.GetPeriphVCorr(SNr); 
+                        break;
+                    #ifdef TESTADC1
+                    case 1:
+                        TempVolt = 12; 
+                        break;
+                    #else
+                    case 1:
+                        TempVal  = ADCBoard[ADC_Module].readADC_SingleEnded(Module.GetPeriphIOPort(SNr, 2));
+                        TempVolt = ADCBoard[ADC_Module].computeVolts(TempVal) * VOLTAGE_DEVIDER_V * Module.GetPeriphVCorr(SNr); 
+                        break;
+                    #endif
+                    
+                    default:
+                        DEBUG_SYS ("Critical Config-Error ADC");
+                }
+                
             #else
                 DEBUG_SYS ("Critical Config-Error ADC");
             #endif
@@ -1131,8 +1150,9 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                                 Serial.println("Saving Peers after received new one...");
                                 ReportAll();
                             }
+                            Module.SetPairMode(false); //nur abschalten, wenn neuer Monitor gepaired
                         }
-                        Module.SetPairMode(false);
+                        //Module.SetPairMode(false);
                         break;
                     case SEND_CMD_STAY_ALIVE: 
                         Module.SetLastContact(millis());
@@ -1413,15 +1433,15 @@ bool MACequals( uint8_t *MAC1, uint8_t *MAC2)
 }
 void InitSCL()
 {
-    if (DEBUG_LVL_HW)
+    Wire.begin(SDA_PIN, SCL_PIN, I2C_FREQ);
+
+    if (0)//(DEBUG_LVL_HW)
     {
         #if defined(PORT0) || defined(ADC0)
             byte error, address;
             int nDevices;
             Serial.println("Scanning...");
             nDevices = 0;
-
-            Wire.begin(SDA_PIN, SCL_PIN, I2C_FREQ);
 
             for(address = 1; address < 127; address++ )
             {
@@ -1481,6 +1501,7 @@ void InitSCL()
         DEBUG_HW ("IOBoard3 not found!\n\r");
     #endif
     #ifdef ADC0                             // init ADS
+        //Wire.begin(SDA_PIN, SCL_PIN, I2C_FREQ);
         ADCBoard[0].setGain(GAIN_TWOTHIRDS);   // 0.1875 mV/Bit .... +- 6,144V
         if (!ADCBoard[0].begin(ADC0)) { 
             DEBUG_HW ("ADC0 not found!\n\r");
@@ -1492,6 +1513,7 @@ void InitSCL()
         }
     #endif
     #ifdef ADC1                             // init ADS
+        //Wire.begin(SDA_PIN, SCL_PIN, I2C_FREQ);
         ADCBoard[1].setGain(GAIN_TWOTHIRDS);   // 0.1875 mV/Bit .... +- 6,144V
         if (!ADCBoard[1].begin(ADC1)) { 
             DEBUG_HW ("ADC1 not found!\n\r");
