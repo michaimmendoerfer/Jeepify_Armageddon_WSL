@@ -26,7 +26,7 @@ void InitModule();
     // blue PCB SensibleDragon V2.0
     // ESP32-C3 Mini 
     // 4 AMP-Sensors (ACS712) 30A witth VMon
-    // 1 VOLT-Sensor (VoltageDevider 4.58333)
+    // 1 VOLT-Sensor (VoltageDevider 7.66666)
     // Pin 10:    LED extern
     // Pin 0:     Pairing Button
     // Pin 1:     Voltage
@@ -34,7 +34,7 @@ void InitModule();
     // I2C 0x48:  ADS1115 
     
     #define ADC0                0x48
-    //#define ADC1                0x49
+    #define ADC1                0x49
     #define PAIRING_BUTTON      0
     #define LED_PIN             10
     //#define RGBLED_PIN          8
@@ -45,7 +45,7 @@ void InitModule();
     #define VOLTAGE_PIN         1
     #define VOLTAGE_DEVIDER_V   7.666666 //100k-15k
     #define VOLTAGE_DEVIDER_A   1.0
-    #define MODULE_NAME         "JL_BA2"
+    #define MODULE_NAME         "JLB2_0"
     #define BOARD_VOLTAGE       3.3
     #define BOARD_ANALOG_MAX    4095
     #define IS_REPEATER         1

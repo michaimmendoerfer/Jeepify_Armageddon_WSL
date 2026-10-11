@@ -11,7 +11,7 @@ const int _LED_SIGNAL = 1;
 const int DEBUG_LVL_SYS = 1;
 const int DEBUG_LVL_COM = 1;
 const int DEBUG_LVL_MAX = 1;
-const int DEBUG_LVL_HW  = 1;
+const int DEBUG_LVL_HW  = 0;
 
 #define WAIT_ALIVE        15*1000
 #define WAIT_FOR_WIFI     300*1000
@@ -970,7 +970,7 @@ float ReadVolt(int SNr)
     {
         if (ADC_Module > -1)
         {
-            #define TESTADC1
+            //#define TESTADC1
             #ifdef ADC0
                 //use ADC
                 switch (ADC_Module)
@@ -1435,7 +1435,7 @@ void InitSCL()
 {
     Wire.begin(SDA_PIN, SCL_PIN, I2C_FREQ);
 
-    if (0)//(DEBUG_LVL_HW)
+    if (DEBUG_LVL_HW)
     {
         #if defined(PORT0) || defined(ADC0)
             byte error, address;
