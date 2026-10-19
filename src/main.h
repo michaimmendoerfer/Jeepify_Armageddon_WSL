@@ -31,7 +31,7 @@ struct ReceivedMessagesStruct {
     ~ReceivedMessagesStruct() = default; 
 };
 struct RepeatMessagesStruct {
-    char Msg[260];
+    char Msg[ESP_MAX_LEN];
     uint32_t TS;
     int TTL;
 };

@@ -464,7 +464,7 @@ void SendReposts(int timer_ms)
             if (millis() - RMItem->TS < REPOST_TIMEOUT)
             {
                 // Sicher senden mit strlen() statt der harten 250!
-                esp_err_t result = esp_now_send(broadcastAddressAll, (uint8_t*) RMItem->Msg, strlen(RMItem->Msg));
+                esp_err_t result = esp_now_send(broadcastAddressAll, (uint8_t*) RMItem->Msg, strlen(RMItem->Msg)+1);
                 DEBUG_COM("ESPNOW Repost: %d - %s\n\r", result, RMItem->Msg); 
             }
             

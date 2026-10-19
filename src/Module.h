@@ -19,8 +19,8 @@
 
 void InitModule();
 
-#define MODULE_VERSION          "4.80"  
-#define PROTOKOLL_VERSION       "4.0"
+#define MODULE_VERSION          "5.01"  
+#define PROTOKOLL_VERSION       "5.0"
 
 #ifdef MODULE_SENSIBLEDRAGON_V2_0 
     // blue PCB SensibleDragon V2.0
