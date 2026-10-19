@@ -1,5 +1,5 @@
 //#define KILL_NVS 1
-//Version 4.03
+//Version 5.01
 
 #include <Arduino.h>
 #include <Module.h>
@@ -295,7 +295,7 @@ void SendStatus (int Pos)
             
             doc[ArrPeriph[SNr]] = String(buf);
             // Prüfen, ob dieses Element das Paket sprengen würde
-            if (measureJson(doc) > 245)
+            if (measureJson(doc) > ESP_MAX_LEN-1)
             {
                 // Element wieder entfernen, da zu groß für dieses Paket
                 doc.remove(ArrPeriph[SNr]);
@@ -365,7 +365,7 @@ void SendPairingRequest()
             doc[ArrPeriph[SNr]] = String(buf);
 	    }
     }
-    if (measureJson(doc) > 245) 
+    if (measureJson(doc) > ESP_MAX_LEN-1) 
     {
         DEBUG_COM("Pairing-Request zu groß, bitte reduzieren Sie die Anzahl der Peripherien!\n\r");
         SendAlert("Pairing-JSON-overflow !!!");
