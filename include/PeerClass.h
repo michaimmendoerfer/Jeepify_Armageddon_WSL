@@ -1,6 +1,6 @@
 /*
 include PeerList and PeriphList
-Version 3.44
+Version 3.50
 */
 
 #ifndef PEERCLASS_H
@@ -17,6 +17,8 @@ Version 3.44
 
 #define ONLINE     1
 #define OFFLINE    0
+#define FUCKLINE   2
+
 #define CIRCULAR   1
 #define NO_CIRC    0
 
@@ -36,7 +38,6 @@ class PeriphClass {
     private:
         char            _Name[20];
         int             _Id;
-        //int             _Type;       //1=Switch, 2=Amp, 3=Volt, 4=Switch/Amp, 5=LatchingRelay, 6=LatchingRelay/Amp
         int             _Type_bit;
         int             _Pos;        //Periph 1..4.. from one peer
         bool            _i2c[4];     //
@@ -52,7 +53,8 @@ class PeriphClass {
         bool            _AlarmTriggered[4];
         bool            _Changed;
         int             _PeerId;
-        int             _Primary;   // primary sensor to show - //switch/Watt/volt/amp/ 0-3
+        int             _Primary;    // the Spirit of the Periph //switch/Watt/volt/amp
+        int             _PrimHelper; // helper for primary sensor to show - //switch/Watt/volt/amp/ 0-3
 
     protected:
         float           _SavedValue[RECORDED_VALUES][4];
@@ -73,11 +75,10 @@ class PeriphClass {
         void  SetId(int Id) { _Id = Id; }
         int   GetType() { return _Type_bit; }
         void  SetType(int Type) { _Type_bit = Type; }
-        //int   GetTypeBit() { return _Type_bit; }
         void  SetTypeBit(int BitToSet) { bitSet(_Type_bit, BitToSet); }
         void  ClearTypeBit(int BitToClear) { bitClear(_Type_bit, BitToClear); }
         bool  GetTypeBit(int BitToCheck) { return bitRead(_Type_bit, BitToCheck); }
-        bool  IsType(int Type);
+        bool  IsType(int TypeMask);
         int   GetPos() { return _Pos; }
         void  SetPos(int Pos) {_Pos = Pos; }
         int   GetIOPort(int i) { return _IOPort[i]; }
@@ -101,10 +102,15 @@ class PeriphClass {
         void  SetPeerId(int PeerId) { _PeerId = PeerId; }
         int   GetPrimary() { return _Primary; }
         void  SetPrimary(int Primary) { _Primary = Primary; }
+        int   GetPrimHelper() { return _PrimHelper; }
+        void  SetPrimHelper(int PrimHelper) { _PrimHelper = PrimHelper; }
         bool  IsSensor() { return ((_Type_bit & P_IS_SENSOR) != 0); }
+        bool  IsPrimarySensor() { return (_Primary == PRIM_VOLT or _Primary == PRIM_AMP or _Primary == PRIM_WATT); }
+        bool  IsPrimarySwitch() { return (_Primary == PRIM_SWITCH); }
         bool  IsSwitch() { return ((_Type_bit & P_IS_SWITCH) != 0); }
         bool  IsAmp() { return ((_Type_bit & P_IS_AMP) != 0); }
         bool  IsVolt() { return ((_Type_bit & P_IS_VOLT) != 0); }
+        bool  IsWatt() { return ((_Type_bit & P_IS_VOLT & P_IS_AMP) != 0); }
         bool  IsLatch() { return ((_Type_bit & P_IS_LATCH) != 0); }
         bool  IsCombo()  { return ((_Type_bit & P_IS_SWITCH) != 0) and ((_Type_bit & P_IS_SENSOR) != 0); }
         bool  isEmpty() { return (_Type_bit == 0); }
@@ -245,7 +251,7 @@ class PeerClass
         bool isPeriphAmp(int SNr) { return Periph[SNr].IsAmp(); }
         bool isPeriphLatch(int SNr) { return Periph[SNr].IsLatch(); }
         bool isPeriphCombo(int SNr) { return Periph[SNr].IsCombo(); }
-
+        
         float GetPeriphAlarmLow(int SNr, int i) { return Periph[SNr].GetAlarmLow(i); }
         void  SetPeriphAlarmLow(int SNr, int i, float Value) { Periph[SNr].SetAlarmLow(i, Value); }
         float GetPeriphAlarmHigh(int SNr, int i) { return Periph[SNr].GetAlarmHigh(i); }

@@ -19,8 +19,8 @@
 
 void InitModule();
 
-#define MODULE_VERSION          "5.01"  
-#define PROTOKOLL_VERSION       "5.0"
+#define MODULE_VERSION          "5.10"  
+#define PROTOKOLL_VERSION       "5.1"
 
 #ifdef MODULE_SENSIBLEDRAGON_V2_0 
     // blue PCB SensibleDragon V2.0
@@ -138,7 +138,7 @@ void InitModule();
     #define VOLTAGE_PIN         1
     #define VOLTAGE_DEVIDER_V   4.82978 //18k-4,7k
     #define VOLTAGE_DEVIDER_A   4.46938
-    #define MODULE_NAME         "4TF_2.0"
+    #define MODULE_NAME         "4TF_5.0"
     #define BOARD_VOLTAGE       3.3
     #define BOARD_ANALOG_MAX    4095
     #define IS_REPEATER         1

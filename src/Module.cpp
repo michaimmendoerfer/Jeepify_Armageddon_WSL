@@ -25,12 +25,12 @@ void InitModule()
         //                Name        Type         Version        Address   sleep  debug  demo  pair  vMon RelayType       SCA      SCL      voltagedevier 
         //Module.Setup(MODULE_NAME, BATTERY_SENSOR, MODULE_VERSION, NULL,     false, true, false, false, 4,  RELAY_NORMAL, SDA_PIN,  SCL_PIN, VOLTAGE_DEVIDER);
         Module.Setup(MODULE_NAME, BATTERY_SENSOR, MODULE_VERSION, NULL,     false, true, false, false);
-        //                      Name     Type                   I2C                             IO(0/1) VOLT AMP                     NULL     VpA    VCorr  PeerID  
-        Module.PeriphSetup(0, "Load",   (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT),    -1, -1,  1,  0,    -1, -1, 0,  3,   2.478,  0.066,  1,    0);
-        Module.PeriphSetup(1, "Extern", (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT),    -1, -1,  1,  0,    -1, -1, 1,  2,   2.475,  0.066,  1,    0);
-        Module.PeriphSetup(2, "Solar",  (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT),    -1, -1,  1,  0,    -1, -1, 2,  1,   2.482,  0.066,  1,    0);
-        Module.PeriphSetup(3, "Fridge", (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT),    -1, -1,  1,  0,    -1, -1, 3,  0,   2.473,  0.066,  1,    0);
-        Module.PeriphSetup(4, "LiPo90", (           P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT),    -1, -1, -1, -1,    -1, -1, 1, -1,    0,    0,       1,    0);  
+        //                      Name     Type                                                       I2C           IO(0/1) VOLT AMP           NULL     VpA    VCorr  PeerID  
+        Module.PeriphSetup(0, "Load",   (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT | P_IS_PRIMARY_SENSOR),    -1, -1,  1,  0,    -1, -1, 0,  3,   2.478,  0.066,  1,    0);
+        Module.PeriphSetup(1, "Extern", (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT | P_IS_PRIMARY_SENSOR),    -1, -1,  1,  0,    -1, -1, 1,  2,   2.475,  0.066,  1,    0);
+        Module.PeriphSetup(2, "Solar",  (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT | P_IS_PRIMARY_SENSOR),    -1, -1,  1,  0,    -1, -1, 2,  1,   2.482,  0.066,  1,    0);
+        Module.PeriphSetup(3, "Fridge", (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT | P_IS_PRIMARY_SENSOR),    -1, -1,  1,  0,    -1, -1, 3,  0,   2.473,  0.066,  1,    0);
+        Module.PeriphSetup(4, "LiPo90", (           P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT | P_IS_PRIMARY_SENSOR),    -1, -1, -1, -1,    -1, -1, 1, -1,    0,    0,       1,    0);  
     #endif
     
     //------------------------------------------------------------------------------------------------------------------------------
@@ -177,10 +177,12 @@ void InitModule()
     }
 
     // Set pinModes
+    int PORT_Module = -1;
     for (int SNr=0; SNr<MAX_PERIPHERALS; SNr++) 
     { 
         if (Module.GetPeriphIOPort(SNr, 0) >= 0) 
         {
+            PORT_Module = Module.GetPeriphI2CPort(SNr,0);
             #ifdef PORT0
                 if (PORT_Module >= 0) IOBoard[PORT_Module]->pinMode(Module.GetPeriphIOPort(SNr, 0), OUTPUT);
             #else
@@ -190,6 +192,7 @@ void InitModule()
 
         if (Module.GetPeriphIOPort(SNr, 1) >= 0) 
         {
+            PORT_Module = Module.GetPeriphI2CPort(SNr,1);
             #ifdef PORT0
                 if (PORT_Module >= 0) IOBoard[PORT_Module]->pinMode(Module.GetPeriphIOPort(SNr, 1), OUTPUT);
             #else

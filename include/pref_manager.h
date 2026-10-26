@@ -1,7 +1,7 @@
 /*
 manage Peers and Periphs,
 defines MultiMonitorClass with one instance: Screen
-Version 3.20
+Version 3.23
 */
 
 #ifndef PREF_MANAGER_H
@@ -19,12 +19,13 @@ class MultiMonitorClass {
         char         _Name[20];
         int          _Id;
         bool         _Changed;
-        PeerClass   *_Peer     [PERIPH_PER_SCREEN];
-        int          _PeerId   [PERIPH_PER_SCREEN];
-        PeriphClass *_Periph   [PERIPH_PER_SCREEN];
-        int          _PeriphId [PERIPH_PER_SCREEN];
+        PeerClass   *_Peer      [PERIPH_PER_SCREEN];
+        int          _PeerId    [PERIPH_PER_SCREEN];
+        PeriphClass *_Periph    [PERIPH_PER_SCREEN];
+        int          _PeriphId  [PERIPH_PER_SCREEN];
         bool         _Used;
-        void        *_Component[PERIPH_PER_SCREEN];
+        void        *_Component [PERIPH_PER_SCREEN];
+        int          _PrimToShow[PERIPH_PER_SCREEN];  // what to show PRIM_SWITCH, PRIM_VOLT, PRIM_AMP, PRIM_WATT
         //lv_obj_t    *_Component[PERIPH_PER_SCREEN];
     
     public:
@@ -38,6 +39,8 @@ class MultiMonitorClass {
         bool  hasChanged() { return _Changed; }
         bool  GetChanged() { return _Changed; }
         void  SetChanged(bool Changed) { _Changed = Changed; }
+        int   GetPrimToShow(int Pos) { return _PrimToShow[Pos]; }
+        void  SetPrimToShow(int Pos, int Prim) { _PrimToShow[Pos] = Prim; }
         int   GetPeerId(int Pos) { return _PeerId[Pos]; }
         void  SetPeerId(int Pos, int PeerId) { _PeerId[Pos] = PeerId; }
         int   GetPeriphId(int Pos) { return _PeriphId[Pos]; }
@@ -55,7 +58,8 @@ class MultiMonitorClass {
                                                                _PeriphId[Pos] = Periph->GetId();
                                                                _Peer[Pos]     = FindPeerById(Periph->GetPeerId());
                                                                _PeerId[Pos]   = Periph->GetPeerId();
-                                                               _Changed = true; }
+                                                               _Changed = true; 
+                                                               _PrimToShow[Pos] = Periph->GetPrimary(); }
         void         DelPeriph(int Pos)                      { _Periph[Pos]   = NULL; 
                                                                _PeriphId[Pos] = -1;
                                                                _Peer[Pos]     = NULL;
