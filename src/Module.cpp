@@ -31,6 +31,13 @@ void InitModule()
         Module.PeriphSetup(2, "Solar",  (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT | P_IS_PRIMARY_SENSOR),    -1, -1,  1,  0,    -1, -1, 2,  1,   2.482,  0.066,  1,    0);
         Module.PeriphSetup(3, "Fridge", (P_IS_AMP | P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT | P_IS_PRIMARY_SENSOR),    -1, -1,  1,  0,    -1, -1, 3,  0,   2.473,  0.066,  1,    0);
         Module.PeriphSetup(4, "LiPo90", (           P_IS_SENSOR |P_IS_VOLT | P_IS_BIDIRECT | P_IS_PRIMARY_SENSOR),    -1, -1, -1, -1,    -1, -1, 1, -1,    0,    0,       1,    0);  
+    
+        Module.SetPeriphAlarmHigh(0, V_AMP,  30);
+        Module.SetPeriphAlarmHigh(1, V_AMP,  30);
+        Module.SetPeriphAlarmHigh(2, V_AMP,  30);
+        Module.SetPeriphAlarmHigh(3, V_AMP,  30);
+        Module.SetPeriphAlarmHigh(4, V_VOLT, 14.5);
+        Module.SetPeriphAlarmLow (4, V_VOLT, 11.5);
     #endif
     
     //------------------------------------------------------------------------------------------------------------------------------
@@ -78,13 +85,19 @@ void InitModule()
         #define VIN BOARD_ANALOG_MAX/BOARD_VOLTAGE
         //                Name        Type         Version        Address   sleep  debug  demo   pair
         Module.Setup(MODULE_NAME, SWITCH_4_WAY, MODULE_VERSION,     NULL,   false, true,  false, false);
-        //                      Name     Type                 I2C:PCF  I2C-ADC    IO(0/1)  VOLT AMP   NULL    VpA   Vin  PeerID  
-        Module.PeriphSetup(0, "Rel0",  SENS_TYPE_LT_AMP,      0,  0,   0,  0,     1, 0,    1,   0,   1.666,  0.040,  0,    0);
-        Module.PeriphSetup(1, "Rel1",  SENS_TYPE_LT_AMP,      0,  0,   1,  1,     3, 2,    2,   3,   1.666,  0.040,  0,    0);
-        Module.PeriphSetup(2, "Rel2",  SENS_TYPE_LT_AMP,      0,  0,   0,  0,     5, 4,    2,   3,   1.666,  0.040,  0,    0);
-        Module.PeriphSetup(3, "Rel3",  SENS_TYPE_LT_AMP,      0,  0,   1,  1,     7, 6,    1,   0,   1.666,  0.040,  0,    0);
+        //                      Name     Type                                                                       I2C:PCF  I2C-ADC    IO(0/1)  VOLT AMP   NULL    VpA   Vin  PeerID  
+        Module.PeriphSetup(0, "Rel0",  P_IS_SWITCH | P_IS_LATCH | P_IS_AMP | P_IS_SENSOR | P_IS_PRIMARY_SWITCH,      0,  0,   0,  0,     1, 0,    1,   0,   1.666,  0.040,  0,    0);
+        Module.PeriphSetup(1, "Rel1",  P_IS_SWITCH | P_IS_LATCH | P_IS_AMP | P_IS_SENSOR | P_IS_PRIMARY_SWITCH,      0,  0,   1,  1,     3, 2,    2,   3,   1.666,  0.040,  0,    0);
+        Module.PeriphSetup(2, "Rel2",  P_IS_SWITCH | P_IS_LATCH | P_IS_AMP | P_IS_SENSOR | P_IS_PRIMARY_SWITCH,      0,  0,   0,  0,     5, 4,    2,   3,   1.666,  0.040,  0,    0);
+        Module.PeriphSetup(3, "Rel3",  P_IS_SWITCH | P_IS_LATCH | P_IS_AMP | P_IS_SENSOR | P_IS_PRIMARY_SWITCH,      0,  0,   1,  1,     7, 6,    1,   0,   1.666,  0.040,  0,    0);
+        Module.PeriphSetup(4, "VMon",  P_IS_VOLT | P_IS_SENSOR | P_IS_PRIMARY_SENSOR,                               -1, -1,  -1, -1,    -1, -1, VOLTAGE_PIN, -1,      0,    0,      VIN,  0);  
 
-        Module.PeriphSetup(4, "VMon",  SENS_TYPE_VOLT,       -1, -1,  -1, -1,    -1, -1, VOLTAGE_PIN, -1,      0,    0,      VIN,  0);  
+        Module.SetPeriphAlarmHigh(0, V_AMP,  30);
+        Module.SetPeriphAlarmHigh(1, V_AMP,  30);
+        Module.SetPeriphAlarmHigh(2, V_AMP,  30);
+        Module.SetPeriphAlarmHigh(3, V_AMP,  30);
+        Module.SetPeriphAlarmHigh(4, V_VOLT, 14.5);
+        Module.SetPeriphAlarmLow (4, V_VOLT, 11.5);
     #endif
 
     //------------------------------------------------------------------------------------------------------------------------------

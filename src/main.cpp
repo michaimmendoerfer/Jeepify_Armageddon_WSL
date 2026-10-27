@@ -1001,7 +1001,7 @@ float ReadVolt(int SNr)
         else
         {
             //use io
-            TempVolt = (float) analogRead(Module.GetPeriphIOPort(SNr, 2)) / BOARD_ANALOG_MAX/BOARD_VOLTAGE * VOLTAGE_DEVIDER_V * Module.GetPeriphVCorr(SNr);
+            TempVolt = (float) analogRead(Module.GetPeriphIOPort(SNr, 2)) / BOARD_ANALOG_MAX*BOARD_VOLTAGE * VOLTAGE_DEVIDER_V * Module.GetPeriphVCorr(SNr);
             delay(5);
         }
 
