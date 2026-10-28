@@ -1353,10 +1353,6 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                 RepeatMessagesList.add(ToRepeat);
             }
         #endif
-    } // end (!error)
-    else // error
-    { 
-          DEBUG1 ("deserializeJson failed: %s\n\r", error.c_str());
     }
 }
 void OnDataRecv(const esp_now_recv_info *info, const uint8_t* incomingData, int len)
