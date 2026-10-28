@@ -1,5 +1,5 @@
 //#define KILL_NVS 1
-//Version 5.01
+//Version 5.02
 
 #include <Arduino.h>
 #include <Module.h>
@@ -8,7 +8,7 @@
 const int DEBUG_LEVEL = 3; 
 const int _LED_SIGNAL = 1;
 
-const int DEBUG_LVL_SYS = 1;
+const int DEBUG_LVL_SYS = 0;
 const int DEBUG_LVL_COM = 1;
 const int DEBUG_LVL_MAX = 1;
 const int DEBUG_LVL_HW  = 0;
@@ -84,6 +84,9 @@ volatile uint32_t TSStatus    = 0;
 volatile uint32_t TSSettings  = 0;
 volatile uint32_t TSCheckRel  = 0;
 volatile uint32_t TSLastWiFi  = 0;
+volatile uint32_t TSLastAlarm = 0;
+
+char jsondataBuf[ESP_MAX_LEN+1];
 
 PeerClass Module;
 Preferences preferences;
@@ -330,6 +333,54 @@ void SendStatus (int Pos)
         }
     }
 }
+
+void SendParams (int Pos) 
+{
+    TSSend = millis(); // Setzt den Timer für den nächsten loop()-Intervall zurück
+    JsonDocument doc; 
+    String jsondata; 
+    char buf[250]; 
+    char mac[13];
+    MacByteToChar(mac, Module.GetBroadcastAddress());
+
+    // Basis-Daten setzen
+    doc[SEND_CMD_JSON_FROM]   = mac;
+    doc[SEND_CMD_JSON_TO]     = "X";
+    doc[SEND_CMD_JSON_TS]     = millis();
+    doc[SEND_CMD_JSON_TTL]    = SEND_CMD_MSG_TTL;
+    doc[SEND_CMD_JSON_ORDER]  = SEND_CMD_RETURN_PARAMS;
+    
+   if (!Module.isPeriphEmpty(Pos))
+    {
+        snprintf(buf, sizeof(buf), "%.3f;%.3f;%.3f;%.3f;%.3f;%.3f;%.3f;%.3f;%.3f;%.3f", 
+            Module.GetPeriphNullwert(Pos),
+            Module.GetPeriphVperAmp(Pos),
+            Module.GetPeriphAlarmLow (Pos, 0),
+            Module.GetPeriphAlarmHigh(Pos, 0),
+            Module.GetPeriphAlarmLow (Pos, 1),
+            Module.GetPeriphAlarmHigh(Pos, 1),
+            Module.GetPeriphAlarmLow (Pos, 2),
+            Module.GetPeriphAlarmHigh(Pos, 2),
+            Module.GetPeriphAlarmLow (Pos, 3),
+            Module.GetPeriphAlarmHigh(Pos, 3)
+            );
+        
+        doc[ArrPeriph[Pos]] = String(buf);
+        // Prüfen, ob dieses Element das Paket sprengen würde
+    }
+
+    // Wenn Elemente zum Senden bereitstehen, jetzt abschicken
+    SetMessageLED(2);
+    jsondata = "";
+    serializeJson(doc, jsondata);
+    DEBUG3("sende: %s\n\r", jsondata.c_str());
+
+    if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()) != 0) 
+    {
+        DEBUG_COM("ESP_ERROR (SendStatus-2)\n\r"); 
+    }
+}
+
 void SendPairingRequest() 
 {
     SetMessageLED(3);
@@ -377,6 +428,7 @@ void SendPairingRequest()
         DEBUG_MAX ("\nSending: %s\n\r", jsondata.c_str());    
     }                           
 }
+
 void SendConfirm(const uint8_t * MAC, uint32_t TSConfirm) 
 {
     SetMessageLED(3);
@@ -1015,6 +1067,9 @@ float ReadVolt(int SNr)
 }
 char *CheckAlarms()
 {
+    if ((millis() - TSLastAlarm ) < ALARM_INTERVAL) return NULL;
+    TSLastAlarm = millis();
+
     AlarmBuffer[0] = '\0';
     char buf[50];
     for (int SNr=0; SNr<MAX_PERIPHERALS; SNr++)
@@ -1053,18 +1108,29 @@ char *CheckAlarms()
 void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int len)  
 {  
     if (incomingData == NULL || len <= 0) return;
-
-    char* buff = (char*) incomingData;        //char buffer
+   
     JsonDocument doc;
-    String jsondata;
+    
+    strncpy(jsondataBuf, (const char*)incomingData, min(len, (int)sizeof(jsondataBuf) - 1));
+    jsondataBuf[min(len, (int)sizeof(jsondataBuf) - 1)] = '\0';
+
+    DeserializationError error = deserializeJson(doc, incomingData, len);
+
+    if (error) {
+        Serial.printf("JSON Fehler: %s\n", error.c_str());
+        return;
+    }
+
     int Pos = -1;
     float  NewVoltage  = 0;
     float  NewNullwert = 0;
     String NewName     = "";
-
-    jsondata = String(buff);                 
-    DeserializationError error = deserializeJson(doc, jsondata);
-
+     
+    if (error) {
+        Serial.printf("JSON Fehler: %s\n", error.c_str());
+        return;
+    }
+    
     if (!error) 
     {
         uint8_t _From[6];
@@ -1085,18 +1151,21 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
         String MacToS = doc[SEND_CMD_JSON_TO].as<String>();
         MacCharToByte(_To, MacToS.c_str());
         
+        char buffi[20];
+        Serial.printf("to: %s, eigene: %s\n\r", MacToS.c_str(), MacByteToChar(buffi, Module.GetBroadcastAddress())); 
+        
         uint32_t _TS = doc[SEND_CMD_JSON_TS].as<uint32_t>();
         int _TTL     = doc[SEND_CMD_JSON_TTL].as<int>();
 
         TSLastWiFi = millis();
         
         // Paket gültig
-
+        Serial.printf("memcmp(_To, Module.GetBroadcastAddress(), 6) == 0 --> %d\n\r", memcmp(_To, Module.GetBroadcastAddress(), 6));
         // Packet verarbeiten wenn für mich
         if ( (memcmp(_To, Module.GetBroadcastAddress(), 6) == 0) or (memcmp(_To, broadcastAddressAll, 6) == 0) )
         {
-            DEBUG_COM("%lu: Recieved from: %s\n\r", _TS, (char *)MacFromS.c_str()); 
-            DEBUG_COM("%s\n\r", jsondata.c_str());
+            DEBUG_COM("Paket ist für mich\n\r%lu: Recieved from: %s\n\r", _TS, (char *)MacFromS.c_str()); 
+            DEBUG_COM("%s\n\r", jsondataBuf);
 
             //already recevied?
             if (ReceivedMessagesList.size() > 0)
@@ -1126,6 +1195,8 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
             if (JX(SEND_CMD_JSON_ORDER))
             {
                 int order = doc[SEND_CMD_JSON_ORDER].as<int>();
+                DEBUG3("Order ist: %d\n\r", order);
+
                 switch (order) 
                 {
                     case SEND_CMD_YOU_ARE_PAIRED:
@@ -1152,7 +1223,6 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                             }
                             Module.SetPairMode(false); //nur abschalten, wenn neuer Monitor gepaired
                         }
-                        //Module.SetPairMode(false);
                         break;
                     case SEND_CMD_STAY_ALIVE: 
                         Module.SetLastContact(millis());
@@ -1175,22 +1245,11 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                         MacFromS = (String) doc[SEND_CMD_JSON_FROM]; // unnötig?
                         */
                         break; 
-                    case SEND_CMD_SLEEPMODE_ON:             SetSleepMode(true);  SendStatus(); break;
-                    case SEND_CMD_SLEEPMODE_OFF:            SetSleepMode(false); SendStatus(); break;
-                    case SEND_CMD_SLEEPMODE_TOGGLE:
-                        if (Module.GetSleepMode()) 
-                        { 
-                            AddStatus("Sleep: off");   
-                            SetSleepMode(false); 
-                            SendStatus();
-                        }
-                        else 
-                        { 
-                            AddStatus("Sleep: on");    
-                            SetSleepMode(true);  
-                            SendStatus();
-                        }
-                        break;
+                    case SEND_CMD_SLEEPMODE_ON:             SetSleepMode(true);  SaveModule(); SendStatus(); break;
+                    case SEND_CMD_SLEEPMODE_OFF:            SetSleepMode(false); SaveModule(); SendStatus(); break;
+                    case SEND_CMD_SLEEPMODE_TOGGLE:         if (Module.GetSleepMode()) SetSleepMode(false); 
+                                                                                  else SetSleepMode(true);  
+                                                            SaveModule(); SendStatus(); break;
                     case SEND_CMD_DEBUGMODE_ON:             SetDebugMode(true);  SaveModule();    SendStatus(); break;
                     case SEND_CMD_DEBUGMODE_OFF:            SetDebugMode(false); SaveModule();    SendStatus(); break;
                     case SEND_CMD_DEBUGMODE_TOGGLE:         SetDebugMode(!Module.GetDebugMode()); SendStatus(); break;
@@ -1249,6 +1308,14 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                             }
                         }
                         break;
+                    case SEND_CMD_SEND_PARAMS:
+                        DEBUG3("Order:SEND_PARAMS erkannt");
+                        if (JX(SEND_CMD_JSON_PERIPH_POS))    
+                        {
+                            Pos = doc[SEND_CMD_JSON_PERIPH_POS].as<int>();
+                            SendParams(Pos);
+                        }
+                        break;
                     case SEND_CMD_SEND_STATE:
                         if (JX(SEND_CMD_JSON_PERIPH_POS))    
                         {
@@ -1267,12 +1334,11 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
             {
                 doc[SEND_CMD_JSON_TTL] = _TTL;
 
-                serializeJson(doc, jsondata);  
-
                 RepeatMessagesStruct *ToRepeat;
                 ToRepeat = new RepeatMessagesStruct;
-                strncpy(ToRepeat->Msg, jsondata.c_str(), sizeof(ToRepeat->Msg) - 1);
-                ToRepeat->Msg[sizeof(ToRepeat->Msg) - 1] = '\0'; 
+                if (!ToRepeat) return;
+
+                serializeJson(doc, ToRepeat->Msg, sizeof(ToRepeat->Msg)); 
                 ToRepeat->TS = _TS;
 
                 if (RepeatMessagesList.size() >= MAX_REPEAT_MSG)            // Ältestes Element löschen, um Platz zu machen

@@ -4,12 +4,12 @@
 #include "Jeepify.h"
 
 //#define MODULE_JL_BATTERY_SENSOR      // (tut)
-//#define MODULE_SENSIBLEDRAGON_V2_0
+#define MODULE_SENSIBLEDRAGON_V2_0
 //#define MODULE_SENSORDRAGON_V1_0
 //#define MODULE_SENSIBLEDRAGON_V1_2
 //#define MODULE_POWERDRAGON4_V1_0
 //#define MODULE_1WAY_C6
-#define MODULE_4_TAILED_FIRINGDRAGON_V1_0
+//#define MODULE_4_TAILED_FIRINGDRAGON_V1_0
 //#define MODULE_4WAY_ESP32_MONSTER
 //#define MODULE_4WAY_ESP32_BIGGY
 //#define MODULE_TERMINATOR_PRO         // ESP32-3248S035C, 480x320 Display
@@ -19,7 +19,7 @@
 
 void InitModule();
 
-#define MODULE_VERSION          "5.10"  
+#define MODULE_VERSION          "5.11"  
 #define PROTOKOLL_VERSION       "5.1"
 
 #ifdef MODULE_SENSIBLEDRAGON_V2_0 

@@ -1,6 +1,7 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+// Version 3.50
 // DEBUG_LEVEL: 0 = nothing, 1 = only Errors, 2 = relevant changes, 3 = all
 #define DEBUG1(...) if ((Module.GetDebugMode()) and (DEBUG_LEVEL > 0)) Serial.printf(__VA_ARGS__)
 #define DEBUG2(...) if ((Module.GetDebugMode()) and (DEBUG_LEVEL > 1)) Serial.printf(__VA_ARGS__)
@@ -31,7 +32,7 @@ struct ReceivedMessagesStruct {
     ~ReceivedMessagesStruct() = default; 
 };
 struct RepeatMessagesStruct {
-    char Msg[ESP_MAX_LEN];
+    char Msg[ESP_MAX_LEN+1];
     uint32_t TS;
     int TTL;
 };
@@ -41,6 +42,7 @@ void   InitSCL();
 float  ReadAmp (int SNr);
 float  ReadVolt(int SNr);
 void   SendStatus (int Pos=-1);
+void   SendParams (int Pos=-1);
 void   SendPairingRequest();
 void   SendAlert(char *msg);
 
