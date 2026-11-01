@@ -86,7 +86,8 @@ volatile uint32_t TSCheckRel  = 0;
 volatile uint32_t TSLastWiFi  = 0;
 volatile uint32_t TSLastAlarm = 0;
 
-char jsondataBuf[ESP_MAX_LEN+1];
+char JSON_Buffer_rcv[ESP_MAX_LEN+1];
+char JSON_Buffer_snd[ESP_MAX_LEN+1];
 
 PeerClass Module;
 Preferences preferences;
@@ -222,9 +223,10 @@ void SendStatus (int Pos)
 {
     TSSend = millis(); // Setzt den Timer für den nächsten loop()-Intervall zurück
     JsonDocument doc; 
-    String jsondata; 
-    char buf[250]; 
+    
+    char buf[200]; 
     char mac[13];
+
     MacByteToChar(mac, Module.GetBroadcastAddress());
 
     DEBUG3("Sendstatus...\n\r");
@@ -245,11 +247,9 @@ void SendStatus (int Pos)
     doc[SEND_CMD_JSON_STATUS] = Status;
     doc[SEND_CMD_JSON_ORDER]  = SEND_CMD_STATUS;
     
-    if (lastPeriphSent == MAX_PERIPHERALS - 1) lastPeriphSent = -1; // Reset, wenn wir am Ende angekommen sind
-
-    int SNrStart = lastPeriphSent + 1;
-    int SNrMax = MAX_PERIPHERALS;
-    int PeriphsSent = 0; 
+    int SNrStart = 0;
+    int SNrMax = MAX_PERIPHERALS; 
+    if (Pos != -1) { SNrStart = Pos; SNrMax = Pos+1; }
 
     for (int SNr = SNrStart; SNr < SNrMax; SNr++) 
     {   
@@ -262,14 +262,16 @@ void SendStatus (int Pos)
 
             if (Module.isPeriphVolt(SNr))
             {
-                Module.SetPeriphValue(SNr, ReadVolt(SNr), 2);
-                
+                //Volt immer positiv interpretieren
+                Module.SetPeriphValue(SNr, fabsf(ReadVolt(SNr)), 2);
+                /*
                 if (Module.GetPeriphType(SNr) & P_IS_REVERSED)
                     Module.SetPeriphValue(SNr, -Module.GetPeriphValue(SNr, 2), 2);
                 if (Module.GetPeriphType(SNr) & P_IS_INPUT)
                     if (Module.GetPeriphValue(SNr, 2) < 0) Module.SetPeriphValue(SNr, 0, 2);
                 if (Module.GetPeriphType(SNr) & P_IS_OUTPUT)
                     if (Module.GetPeriphValue(SNr, 2) > 0) Module.SetPeriphValue(SNr, 0, 2);
+                */
             }
             if (Module.isPeriphAmp(SNr))
             {
@@ -297,60 +299,37 @@ void SendStatus (int Pos)
                 FormatedValue3);
             
             doc[ArrPeriph[SNr]] = String(buf);
-            // Prüfen, ob dieses Element das Paket sprengen würde
-            if (measureJson(doc) > ESP_MAX_LEN-1)
-            {
-                // Element wieder entfernen, da zu groß für dieses Paket
-                doc.remove(ArrPeriph[SNr]);
-                
-                // WICHTIG: Breche nicht komplett ab, sondern sende das bisherige Paket JETZT
-                break; 
-            }    
-            else
-            {
-                // Es passt, wir merken uns diese Position als erfolgreich verpackt
-                lastPeriphSent = SNr;
-                PeriphsSent++;
-            }
-        }
-        else
-        {
-            lastPeriphSent = SNr;
         }
     }
 
-    // Wenn Elemente zum Senden bereitstehen, jetzt abschicken
-    if (PeriphsSent > 0)
+    SetMessageLED(2);
+    serializeJson(doc, JSON_Buffer_snd);
+    DEBUG3("sende: %s\n\r", JSON_Buffer_snd);
+
+    if (esp_now_send(broadcastAddressAll, (uint8_t *) JSON_Buffer_snd, strlen(JSON_Buffer_snd)+1) != 0) 
     {
-        SetMessageLED(2);
-        jsondata = "";
-        serializeJson(doc, jsondata);
-        DEBUG3("sende: %s\n\r", jsondata.c_str());
-
-        if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()) != 0) 
-        {
-            DEBUG_COM("ESP_ERROR (SendStatus-2)\n\r"); 
-        }
+        DEBUG_COM("ESP_ERROR (SendStatus-2)\n\r"); 
     }
+
 }
 
 void SendParams (int Pos) 
 {
-    TSSend = millis(); // Setzt den Timer für den nächsten loop()-Intervall zurück
     JsonDocument doc; 
-    String jsondata; 
     char buf[250]; 
     char mac[13];
     MacByteToChar(mac, Module.GetBroadcastAddress());
 
     // Basis-Daten setzen
-    doc[SEND_CMD_JSON_FROM]   = mac;
-    doc[SEND_CMD_JSON_TO]     = "X";
-    doc[SEND_CMD_JSON_TS]     = millis();
-    doc[SEND_CMD_JSON_TTL]    = SEND_CMD_MSG_TTL;
-    doc[SEND_CMD_JSON_ORDER]  = SEND_CMD_RETURN_PARAMS;
+    doc[SEND_CMD_JSON_FROM]     = mac;
+    doc[SEND_CMD_JSON_TO]       = "X";
+    doc[SEND_CMD_JSON_TS]       = millis();
+    doc[SEND_CMD_JSON_TTL]      = SEND_CMD_MSG_TTL;
+    doc[SEND_CMD_JSON_ORDER]    = SEND_CMD_RETURN_PARAMS;
+    doc[SEND_CMD_JSON_NULLWERT] = Module.GetPeriphNullwert(Pos);
+    doc[SEND_CMD_JSON_VPERAMP]  = Module.GetPeriphVperAmp(Pos);
     
-   if (!Module.isPeriphEmpty(Pos))
+    if (!Module.isPeriphEmpty(Pos))
     {
         snprintf(buf, sizeof(buf), "%.3f;%.3f;%.3f;%.3f;%.3f;%.3f;%.3f;%.3f;%.3f;%.3f", 
             Module.GetPeriphNullwert(Pos),
@@ -371,11 +350,10 @@ void SendParams (int Pos)
 
     // Wenn Elemente zum Senden bereitstehen, jetzt abschicken
     SetMessageLED(2);
-    jsondata = "";
-    serializeJson(doc, jsondata);
-    DEBUG3("sende: %s\n\r", jsondata.c_str());
+    serializeJson(doc, JSON_Buffer_snd);
+    DEBUG3("sende: %s\n\r", JSON_Buffer_snd);
 
-    if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()) != 0) 
+    if (esp_now_send(broadcastAddressAll, (uint8_t *) JSON_Buffer_snd, strlen(JSON_Buffer_snd)+1) != 0) 
     {
         DEBUG_COM("ESP_ERROR (SendStatus-2)\n\r"); 
     }
@@ -385,7 +363,7 @@ void SendPairingRequest()
 {
     SetMessageLED(3);
     
-    JsonDocument doc; String jsondata; 
+    JsonDocument doc; 
     char buf[300] = {};
     char mac[20];
 
@@ -423,9 +401,9 @@ void SendPairingRequest()
     }
     else
     {
-        serializeJson(doc, jsondata);  
-        esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()); 
-        DEBUG_MAX ("\nSending: %s\n\r", jsondata.c_str());    
+        serializeJson(doc, JSON_Buffer_snd);  
+        esp_now_send(broadcastAddressAll, (uint8_t *) JSON_Buffer_snd, strlen(JSON_Buffer_snd)+1); 
+        DEBUG_MAX ("\nSending: %s\n\r", JSON_Buffer_snd);    
     }                           
 }
 
@@ -433,7 +411,7 @@ void SendConfirm(const uint8_t * MAC, uint32_t TSConfirm)
 {
     SetMessageLED(3);
     
-    JsonDocument doc; String jsondata; 
+    JsonDocument doc; 
     
     int Status = 0;
     if (Module.GetDebugMode())   bitSet(Status, 0);
@@ -451,11 +429,11 @@ void SendConfirm(const uint8_t * MAC, uint32_t TSConfirm)
     doc[SEND_CMD_JSON_STATUS] = Status;
     doc[SEND_CMD_JSON_ORDER]  = SEND_CMD_CONFIRM;
 
-    serializeJson(doc, jsondata); 
+    serializeJson(doc, JSON_Buffer_snd); 
 
     DEBUG_COM ("%lu: Sending Confirm (%lu) to: %s ", millis(), TSConfirm, FindPeerByMAC(MAC)->GetName()); 
             
-    if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()) == 0) 
+    if (esp_now_send(broadcastAddressAll, (uint8_t *) JSON_Buffer_snd, strlen(JSON_Buffer_snd)+1) == 0) 
     {
         DEBUG_MAX ("ESP_OK\n\r");  
     }
@@ -464,14 +442,13 @@ void SendConfirm(const uint8_t * MAC, uint32_t TSConfirm)
         DEBUG_MAX ("ESP_ERROR\n\r"); 
     }     
     
-    DEBUG_COM ("%s", jsondata.c_str());
+    DEBUG_COM ("%s", JSON_Buffer_snd);
     
     AddStatus("Send Confirm...");                                     
 }
 void SendAlert(char *msg) 
 {
     JsonDocument doc; 
-    String jsondata; 
     char mac[13];
     MacByteToChar(mac, Module.GetBroadcastAddress());
     
@@ -490,11 +467,10 @@ void SendAlert(char *msg)
     doc[SEND_CMD_JSON_ORDER]  = SEND_CMD_ALERT;
     doc[SEND_CMD_JSON_VALUE]  = String(msg);
            
-    jsondata = "";
-    serializeJson(doc, jsondata);
-    DEBUG3("sende: %s\n\r", jsondata.c_str());
+    serializeJson(doc, JSON_Buffer_snd);
+    DEBUG3("sende: %s\n\r", JSON_Buffer_snd);
 
-    if (esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), jsondata.length()) != 0) 
+    if (esp_now_send(broadcastAddressAll, (uint8_t *) JSON_Buffer_snd, strlen(JSON_Buffer_snd)+1) != 0) 
     {
         DEBUG_COM("ESP_ERROR (SendStatus-2)\n\r"); 
     }
@@ -738,17 +714,16 @@ void UpdateDataFromSwitches()
 void GoToSleep() 
 {
     /*JsonDocument doc;
-    String jsondata;
     
     doc["Node"] = Module.GetName();   
     doc["Type"] = Module.GetType();
     doc["Msg"]  = "GoodBye - going to sleep";
     
-    serializeJson(doc, jsondata);  
+    serializeJson(doc, JSON_Buffer_snd);  
         
-    esp_now_send(broadcastAddressAll, (uint8_t *) jsondata.c_str(), 200);  //Sending "jsondata"  
+    esp_now_send(broadcastAddressAll, (uint8_t *) JSON_Buffer_snd, strlen(JSON_Buffer_snd)+1);  //Sending JSON_Buffer_snd  
     delay(50);
-    DEBUG2 ("\nSending: %s\n\r", jsondata.c_str());
+    DEBUG2 ("\nSending: %s\n\r", JSON_Buffer_snd);
     */
     AddStatus("Send Going to sleep......"); 
     
@@ -1111,8 +1086,8 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
    
     JsonDocument doc;
     
-    strncpy(jsondataBuf, (const char*)incomingData, min(len, (int)sizeof(jsondataBuf) - 1));
-    jsondataBuf[min(len, (int)sizeof(jsondataBuf) - 1)] = '\0';
+    strncpy(JSON_Buffer_rcv, (const char*)incomingData, min(len, (int)sizeof(JSON_Buffer_rcv) - 1));
+    JSON_Buffer_rcv[min(len, (int)sizeof(JSON_Buffer_rcv) - 1)] = '\0';
 
     DeserializationError error = deserializeJson(doc, incomingData, len);
 
@@ -1165,7 +1140,7 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
         if ( (memcmp(_To, Module.GetBroadcastAddress(), 6) == 0) or (memcmp(_To, broadcastAddressAll, 6) == 0) )
         {
             DEBUG_COM("Paket ist für mich\n\r%lu: Recieved from: %s\n\r", _TS, (char *)MacFromS.c_str()); 
-            DEBUG_COM("%s\n\r", jsondataBuf);
+            DEBUG_COM("%s\n\r", JSON_Buffer_rcv);
 
             //already recevied?
             if (ReceivedMessagesList.size() > 0)
@@ -1309,7 +1284,7 @@ void OnDataRecvCommon(const uint8_t * dummymac, const uint8_t *incomingData, int
                         }
                         break;
                     case SEND_CMD_SEND_PARAMS:
-                        DEBUG3("Order:SEND_PARAMS erkannt");
+                        DEBUG3("Order:SEND_PARAMS erkannt\n\r");
                         if (JX(SEND_CMD_JSON_PERIPH_POS))    
                         {
                             Pos = doc[SEND_CMD_JSON_PERIPH_POS].as<int>();
